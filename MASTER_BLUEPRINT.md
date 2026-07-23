@@ -10684,6 +10684,344 @@ Implementation Phase (Phase 0: Governance)
 
 > Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
 > Semua informasi telah disimpan tanpa pengurangan.
-> Update: 23 Juli 2026 — Bagian 1-453 + Bagian 454-465 (Logical ERD — Batch 4: Governance, Config, Cross-DB Map, Final)
+> Update: 23 Juli 2026 — Bagian 1-465 + Bagian 466-475 (Physical SQL Schema — MySQL DDL + PostgreSQL/TimescaleDB DDL + Migration Runner)
+
+---
+
+## 466. Physical SQL Schema — Overview
+
+Setelah Logical ERD selesai (465 bagian), tahap ini menghasilkan **Physical SQL DDL** yang langsung executable.
+
+### File Structure
+
+```
+database/
+├── migrate.sh                          # Migration runner script
+└── migrations/
+    ├── 001_create_database_and_schemas.sql   # Database + 10 schemas
+    ├── 002_identity_schema.sql               # 8 tables (Identity context)
+    ├── 003_market_master_schema.sql           # 9 tables (Market Master context)
+    ├── 004_fundamental_schema.sql             # 6 tables (Fundamental context)
+    ├── 005_analytics_schema.sql               # 8 tables (Analytics context)
+    ├── 006_risk_schema.sql                    # 4 tables (Risk context)
+    ├── 007_portfolio_schema.sql               # 7 tables + forward FKs (Portfolio context)
+    ├── 008_trading_settlement_schema.sql      # 7 tables + deferred FKs (Trading + Settlement)
+    ├── 009_governance_schema.sql              # 6 tables (Governance context)
+    ├── 010_config_schema.sql                  # 6 tables + deferred FKs (Config context)
+    ├── 011_postgresql_timescaledb_schema.sql  # 8 hypertables + 2 meta + 1 continuous aggregate
+    ├── 012_seed_data.sql                      # Seed: exchanges, tenant, permissions, params
+    └── 013_drop_all.sql                       # Rollback: drop all schemas
+```
+
+---
+
+## 467. MySQL DDL — Physical Decisions
+
+### Engine & Charset
+
+```
+Storage Engine: InnoDB (ACID, row-level locking, FK support)
+Charset:        utf8mb4 (full Unicode, emoji-safe)
+Collation:      utf8mb4_unicode_ci
+```
+
+### PK Strategy (Physical)
+
+```
+All PKs: VARCHAR(36) — UUID v7 stored as string
+  - Application generates UUID v7 (time-ordered)
+  - MySQL does NOT generate UUID natively in INSERT
+  - PHP: Ramsey\Uuid\Uuid::uuid7()->toString()
+```
+
+### Timestamp Convention
+
+```
+All timestamps: TIMESTAMP(6) — microsecond precision
+  - created_at: DEFAULT CURRENT_TIMESTAMP(6)
+  - updated_at: DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
+  - MySQL TIMESTAMP range: 1970-01-01 to 2038-01-19 (sufficient for current platform)
+```
+
+### FK Convention
+
+```
+Cross-context FKs: ON DELETE RESTRICT (no cascade across schemas)
+Same-context FKs:  ON DELETE CASCADE (junction tables, child tables)
+Nullable FKs:       ON DELETE SET NULL
+```
+
+### Deferred FK Pattern
+
+```
+Some FKs cross schema boundaries where the referenced table
+is created in a later migration file. These are handled via
+ALTER TABLE ADD CONSTRAINT after both tables exist:
+
+  - portfolio_account.broker_id → trading.broker (added in 008)
+  - cash_transaction.execution_id → trading.execution (added in 008)
+  - risk_event.resolved_by → identity.user (added in 008)
+  - risk_limit.portfolio_id → portfolio.portfolio (added in 007)
+  - risk_assessment.portfolio_id → portfolio.portfolio (added in 007)
+  - risk_event.portfolio_id → portfolio.portfolio (added in 007)
+  - backtest_run.portfolio_id → portfolio.portfolio (added in 007)
+  - financial_statement.source_document_id → config.storage_object (added in 010)
+  - news_item.storage_object_id → config.storage_object (added in 010)
+  - model_registry.storage_object_id → config.storage_object (added in 010)
+  - model_registry.training_dataset_id → config.storage_object (added in 010)
+  - backtest_run.results_object_id → config.storage_object (added in 010)
+```
+
+---
+
+## 468. PostgreSQL/TimescaleDB DDL — Physical Decisions
+
+### Database & Extension
+
+```
+Database:  market_tsdb (separate from MySQL platform)
+Extension: timescaledb, uuid-ossp
+```
+
+### Hypertable Configuration
+
+| Hypertable | Chunk Interval | Compress After | Retain For |
+|------------|---------------|----------------|------------|
+| ohlcv.ohlcv_daily | 30 days | 90 days | 10 years |
+| ohlcv.ohlcv_intraday | 1 day | 7 days | 1 year |
+| tick.tick | 1 hour | 1 day | 90 days |
+| quote.quote | 1 hour | 1 day | 90 days |
+| valuation.valuation_metric | 90 days | 180 days | 10 years |
+| economic.economic_indicator_ts | 365 days | 365 days | 20 years |
+| factor.factor_time_series | 90 days | 180 days | 10 years |
+| technical.technical_indicator | 7 days | 30 days | 5 years |
+
+### Compression Strategy
+
+```
+All hypertables use:
+  compress_segmentby = 'instrument_id, exchange_id' (or equivalent)
+  compress_orderby = 'date DESC' (or 'timestamp DESC')
+
+This means:
+  - Data is segmented by instrument + exchange
+  - Within each segment, rows are ordered by time descending
+  - Compression activates after configured interval
+  - Queries on recent data hit uncompressed chunks (fast)
+  - Historical queries hit compressed chunks (space-efficient)
+```
+
+### Continuous Aggregates
+
+```
+1. ohlcv.ohlcv_daily_cagg
+   - Source: ohlcv.ohlcv_intraday
+   - Output: Daily OHLCV (open=first, high=max, low=min, close=last, volume=sum)
+   - Refresh: every 1 hour, covering last 7 days
+```
+
+### PK Strategy (PostgreSQL)
+
+```
+All PKs: UUID type (not VARCHAR)
+  - PostgreSQL has native UUID type (16 bytes, more efficient than VARCHAR(36))
+  - Default: uuid_generate_v7() (from uuid-ossp extension)
+  - Composite natural keys for hypertables: (instrument_id, exchange_id, date/timestamp)
+```
+
+---
+
+## 469. Migration Runner
+
+### Usage
+
+```bash
+# Run all migrations (creates database, schemas, tables, indexes, FKs)
+./database/migrate.sh up
+
+# Seed default data (exchanges, tenant, permissions, system params)
+./database/migrate.sh seed
+
+# Rollback (drops all schemas — development only!)
+./database/migrate.sh down
+```
+
+### Environment Variables
+
+```
+DB_HOST   (default: 127.0.0.1)
+DB_PORT   (default: 3306)
+DB_USER   (default: root)
+DB_PASS   (default: empty)
+DB_NAME   (default: platform)
+```
+
+### Execution Order
+
+```
+001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010
+  ↓
+011 (PostgreSQL — separate database, run independently)
+  ↓
+012 (seed data — optional, MySQL only)
+```
+
+---
+
+## 470. Physical DDL — Table Count Verification
+
+### MySQL (61 tables across 10 schemas)
+
+| Schema | Tables | Migration File |
+|--------|--------|----------------|
+| identity | 8 | 002 |
+| market_master | 9 | 003 |
+| fundamental | 6 | 004 |
+| analytics | 8 | 005 |
+| risk | 4 | 006 |
+| portfolio | 7 | 007 |
+| trading | 5 | 008 |
+| settlement | 2 | 008 |
+| governance | 6 | 009 |
+| config | 6 | 010 |
+| **Total** | **61** | |
+
+### PostgreSQL/TimescaleDB (10 tables + 1 continuous aggregate)
+
+| Schema | Tables | Type |
+|--------|--------|------|
+| ohlcv | 2 (daily, intraday) | Hypertable |
+| tick | 1 | Hypertable |
+| quote | 1 | Hypertable |
+| valuation | 1 | Hypertable |
+| economic | 1 | Hypertable |
+| factor | 1 | Hypertable |
+| technical | 1 | Hypertable |
+| meta | 2 (data_source, ingestion_log) | Regular table |
+| **Total** | **10 tables + 1 CAGG** | |
+
+---
+
+## 471. Physical DDL — Index Count
+
+### MySQL Indexes (excluding PKs)
+
+| Schema | Unique Keys | Indexes | Total |
+|--------|-------------|---------|-------|
+| identity | 5 | 5 | 10 |
+| market_master | 4 | 8 | 12 |
+| fundamental | 3 | 9 | 12 |
+| analytics | 3 | 10 | 13 |
+| risk | 1 | 5 | 6 |
+| portfolio | 4 | 8 | 12 |
+| trading | 2 | 8 | 10 |
+| settlement | 2 | 4 | 6 |
+| governance | 2 | 11 | 13 |
+| config | 4 | 9 | 13 |
+| **Total** | **30** | **77** | **107** |
+
+### PostgreSQL Indexes
+
+```
+8 hypertables × 2-3 indexes each = ~20 indexes
++ 1 continuous aggregate index
++ 2 meta table PKs
+= ~23 indexes total
+```
+
+---
+
+## 472. Physical DDL — FK Count
+
+### MySQL Foreign Keys
+
+| Type | Count | Description |
+|------|-------|-------------|
+| Cross-schema FKs | 40+ | FKs across different MySQL schemas |
+| Same-schema FKs | 15+ | FKs within same schema (e.g., user_role → user) |
+| Self-referencing FKs | 2 | financial_statement.revision_of, economic_indicator.revision_of |
+| Deferred FKs | 12 | Added via ALTER TABLE after both tables exist |
+| **Total** | **~57** | |
+
+### PostgreSQL Foreign Keys
+
+```
+0 database-level FKs to MySQL (cross-database, logical only)
+2 FKs within meta schema (ingestion_log → data_source)
+```
+
+---
+
+## 473. Physical DDL — Seed Data
+
+### Seeded in 012_seed_data.sql
+
+| Entity | Count | Description |
+|--------|-------|-------------|
+| exchange | 7 | IDX, NYSE, Nasdaq, LSE, TSE, SGX, HKEX |
+| tenant | 1 | Default tenant (ENTERPRISE plan) |
+| permission | 18 | All permission categories |
+| system_parameter | 11 | Platform config defaults |
+
+---
+
+## 474. Physical SQL Schema — Final Statement
+
+> **Physical SQL Schema complete. 61 MySQL tables across 10 schemas. 10 PostgreSQL/TimescaleDB tables (8 hypertables + 2 meta). 1 continuous aggregate. 107 MySQL indexes. ~23 PostgreSQL indexes. ~57 MySQL FKs. 12 deferred FKs resolved. Migration runner script ready. Seed data for 7 exchanges, default tenant, 18 permissions, 11 system parameters.**
 >
-> TOTAL: 465 BAGIAN
+> **All DDL files are immediately executable. No manual intervention needed between migration files.**
+>
+> **Next: API Contract (REST endpoints) → Service Boundary Specification → Implementation.**
+
+---
+
+## 475. Yang Sudah Terselesaikan — Full Progress (Final Update)
+
+```
+System Constitution
+    ↓
+Architecture Contradiction Audit
+    ↓
+Technology Decision Record (13 ADRs, 15 Non-Negotiable Rules)
+    ↓
+Domain Model (12 Bounded Contexts + 1 Transversal)
+    ↓
+Bounded Context (Entities, Ownership, Dependencies)
+    ↓
+Canonical Data Model (10 Data Principles, Storage Architecture)
+    ↓
+Data Architecture (Temporal Model, PIT Query, Versioning, Trust Levels)
+    ↓
+Canonical Data Contract (15 Items — ALL COMPLETE)
+    ↓
+Logical Database Architecture & ERD (10 Contexts, 61 Tables — ALL COMPLETE)
+    ↓
+Physical SQL Schema (MySQL DDL + PostgreSQL DDL + Migration Runner — ALL COMPLETE)
+    ├── 001: Database + 10 schemas
+    ├── 002: Identity (8 tables)
+    ├── 003: Market Master (9 tables)
+    ├── 004: Fundamental (6 tables)
+    ├── 005: Analytics (8 tables)
+    ├── 006: Risk (4 tables)
+    ├── 007: Portfolio (7 tables + forward FKs)
+    ├── 008: Trading + Settlement (7 tables + deferred FKs)
+    ├── 009: Governance (6 tables)
+    ├── 010: Config (6 tables + deferred FKs)
+    ├── 011: PostgreSQL/TimescaleDB (8 hypertables + 2 meta + 1 CAGG)
+    ├── 012: Seed data (7 exchanges, tenant, permissions, params)
+    └── 013: Rollback script
+    ↓
+API Contract (REST endpoints)     ← NEXT
+    ↓
+Service Boundary Specification
+    ↓
+Implementation Phase (Phase 0: Governance)
+```
+
+---
+
+> Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
+> Semua informasi telah disimpan tanpa pengurangan.
+> Update: 23 Juli 2026 — Bagian 1-465 + Bagian 466-475 (Physical SQL Schema — MySQL DDL + PostgreSQL DDL + Migration Runner)
+>
+> TOTAL: 475 BAGIAN
