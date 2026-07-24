@@ -7,7 +7,7 @@
 
 **Last updated:** 24 Juli 2026 (CYCLE-001 Docker setup)
 
-### Backend Services: 15/15 Complete
+### Backend Services: 16/16 Complete
 
 | # | Service | Phase | Methods | Endpoints | Status |
 |---|---------|-------|---------|-----------|--------|
@@ -26,6 +26,7 @@
 | 13 | AlertService | 6 | 9 | 9 | ✅ Done |
 | 14 | BrokerAdapterService | 7 | 8 | 8 | ✅ Done |
 | 15 | BacktestService | 10 | 7 | 6 | ✅ Done |
+| 16 | PaperTradingService | 10 | 8 | 8 | ✅ Done |
 
 ### Cross-Service Wiring: ✅ Done
 - ServiceHub: pre-trade risk check, auto-settlement, audit logging
@@ -43,15 +44,15 @@
 ### Test Results
 
 ```
-PHPUnit: 117 tests, 221 assertions — ALL PASS
+PHPUnit: 132 tests, 247 assertions — ALL PASS
 PSR-12: 0 violations on new files (1 pre-existing in ConfigServiceTest)
-Total endpoints: 213 (209 service + 4 cross-cutting)
-MySQL tables: 67 (schema designed, migrations not yet applied)
+Total endpoints: 221 (217 service + 4 cross-cutting)
+MySQL tables: 70 (schema designed, migrations not yet applied)
 ```
 
 ### Next Priorities (from unchecked items below)
 
-1. **Paper trading** — simulated execution
+1. **AI engine** — NLP, pattern recognition, anomaly detection
 2. **Production deployment** — Kubernetes, monitoring, security audit
 
 ---
@@ -224,10 +225,10 @@ MySQL tables: 67 (schema designed, migrations not yet applied)
   - [x] Historical data replay engine (replayStrategy with buy/sell on price bars)
   - [x] Strategy testing interface (createRun + executeRun with price data input)
   - [x] Performance metrics (Sharpe, Sortino, Max DD, win rate, profit factor)
-- [ ] Paper trading
-  - [ ] Simulated execution
-  - [ ] Virtual portfolio
-  - [ ] Signal validation
+- [x] Paper trading (PaperTradingService)
+  - [x] Simulated execution (MARKET/LIMIT orders, instant fill)
+  - [x] Virtual portfolio (cash balance, position tracking, avg price)
+  - [x] Signal validation (duplicate detection via signal_id)
 
 ## FASE 11 — FRONTEND & UI (Minggu 25-28)
 - [x] Dashboard (market overview, portfolio summary)

@@ -104,26 +104,27 @@
 ## CURRENT TASK
 
 ```
-TASK ID: CYCLE-008
-TITLE: Paper Trading
+TASK ID: CYCLE-009
+TITLE: AI Engine — NLP, pattern recognition
 PRIORITY: Medium
-FASE: 10 (Backtesting & Paper Trading)
+FASE: 9 (AI Engine)
 
 DESCRIPTION:
-Buat PaperTradingService di src/PaperTrading/:
-- Simulated execution engine (no real broker)
-- Virtual portfolio with fake cash/positions
-- Signal validation workflow
-- Schema: paper_portfolio, paper_order, paper_position
-- Endpoints: POST /paper/orders, GET /paper/positions, GET /paper/summary
+Buat AIEngineService di src/AIEngine/:
+- News NLP pipeline (sentiment, entity, event extraction)
+- Pattern recognition (chart patterns)
+- Anomaly detection
+- Smart alerts integration
+- Schema: ai_analysis, ai_model_run
+- Endpoints: POST /ai/sentiment, POST /ai/pattern, GET /ai/analyses
 - Gunakan BaseService, ApiException, declare(strict_types=1)
 
 FILES TO CREATE:
-- src/PaperTrading/PaperTradingServiceInterface.php
-- src/PaperTrading/PaperTradingService.php
-- src/PaperTrading/PaperTradingRoutes.php
-- database/migrations/019_paper_trading_schema.sql
-- tests/PaperTrading/PaperTradingServiceTest.php
+- src/AIEngine/AIEngineServiceInterface.php
+- src/AIEngine/AIEngineService.php
+- src/AIEngine/AIEngineRoutes.php
+- database/migrations/020_ai_engine_schema.sql
+- tests/AIEngine/AIEngineServiceTest.php
 
 VALIDATION:
 - php vendor/bin/phpunit --no-coverage (all pass)
@@ -135,12 +136,6 @@ VALIDATION:
 ## TASK QUEUE (After Current Task)
 
 ```
-CYCLE-009: AI Engine — NLP, pattern recognition
-  - News NLP pipeline (sentiment, entity, event)
-  - Pattern recognition (chart patterns)
-  - Anomaly detection
-  - FASE: 9
-
 CYCLE-010: Production Deployment
   - Docker/Kubernetes deployment
   - Load testing
@@ -233,7 +228,17 @@ CYCLE-010: Production Deployment
   - 13 tests/28 assertions, 117 tests/221 assertions total
   - Service #15 registered, migrate.sh updated for 011-018
 
-[NEXT] CYCLE-008: Paper Trading
+[2026-07-24] CYCLE-008: Paper Trading
+  - PaperTradingService: createAccount, getAccount, placeOrder, cancelOrder, listOrders, getPositions, getSummary, validateSignal
+  - 8 endpoints: POST /paper/accounts, GET /paper/accounts/{id}, POST/DELETE/GET orders, GET positions, GET summary, POST validate-signal
+  - Simulated execution: MARKET/LIMIT orders, instant fill, cash deduction/credit
+  - Position management: avg price tracking, realized PnL on SELL
+  - Signal validation: duplicate detection (already_traded flag)
+  - Schema: paper_trading.paper_account + paper_order + paper_position (3 tables, 70 total)
+  - 15 tests/28 assertions, 132 tests/247 assertions total
+  - Service #16 registered, migrate.sh updated for 011-019
+
+[NEXT] CYCLE-009: AI Engine — NLP, pattern recognition
   - Status: NOT STARTED
 ```
 

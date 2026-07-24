@@ -12,6 +12,8 @@ use Platform\Trading\BrokerAdapterRoutes;
 use Platform\Trading\BrokerAdapterService;
 use Platform\Backtesting\BacktestRoutes;
 use Platform\Backtesting\BacktestService;
+use Platform\PaperTrading\PaperTradingRoutes;
+use Platform\PaperTrading\PaperTradingService;
 use Platform\Config\ConfigRoutes;
 use Platform\Config\ConfigService;
 use Platform\DataIngestion\DataIngestionRoutes;
@@ -58,6 +60,7 @@ $app->registerService('valuation', new ValuationService());
 $app->registerService('alert', new AlertService());
 $app->registerService('broker_adapter', new BrokerAdapterService());
 $app->registerService('backtest', new BacktestService());
+$app->registerService('paper_trading', new PaperTradingService());
 
 // Create router
 $router = new Router();
@@ -98,7 +101,7 @@ $router->get('/metrics', function (Request $request): Response {
             'environment' => $app->getEnvironment(),
         ],
         'uptime_seconds' => time() - ($_SERVER['REQUEST_TIME'] ?? time()),
-        'services_registered' => 15,
+        'services_registered' => 16,
     ]);
 });
 
@@ -128,6 +131,7 @@ ValuationRoutes::register($router);
 AlertRoutes::register($router);
 BrokerAdapterRoutes::register($router);
 BacktestRoutes::register($router);
+PaperTradingRoutes::register($router);
 
 // Dispatch
 $request = new Request();
