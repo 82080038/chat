@@ -1,0 +1,8 @@
+# Capital Market Platform — Kubernetes Deployment
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: capital-market
+  labels:
+    app: capital-market-platform

@@ -1,0 +1,104 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: platform-db-prod
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeme_root}
+      MYSQL_DATABASE: ${DB_NAME:-platform}
+      MYSQL_USER: ${DB_USER:-platform}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - platform-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: platform-redis-prod
+    restart: always
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - platform-net
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.production
+    container_name: platform-app-prod
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-platform}
+      DB_USER: ${DB_USER:-platform}
+      DB_PASS: ${DB_PASSWORD:-changeme}
+      DB_CHARSET: utf8mb4
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+      APP_ENV: production
+      APP_DEBUG: "false"
+      JWT_SECRET: ${JWT_SECRET:-changeme}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-changeme}
+    entrypoint: ["/usr/local/bin/php-init.sh"]
+    networks:
+      - platform-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: platform-prometheus
+    restart: always
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - platform-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: platform-grafana
+    restart: always
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - platform-net
+
+volumes:
+  db_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  platform-net:
+    driver: bridge
