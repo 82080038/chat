@@ -14,12 +14,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function doLogin(emailVal: string, passVal: string) {
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      await login(emailVal, passVal);
       navigate("/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Login failed";
@@ -27,6 +26,17 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    await doLogin(email, password);
+  }
+
+  async function handleQuickLogin() {
+    setEmail("owner@platform.local");
+    setPassword("Test@1234567");
+    await doLogin("owner@platform.local", "Test@1234567");
   }
 
   return (
@@ -87,6 +97,29 @@ export default function Login() {
               )}
             </Button>
           </form>
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Dev Mode</span>
+            </div>
+          </div>
+          <Button
+            variant="secondary"
+            className="w-full"
+            onClick={handleQuickLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              "Quick Login (Dev)"
+            )}
+          </Button>
         </CardContent>
       </Card>
     </div>

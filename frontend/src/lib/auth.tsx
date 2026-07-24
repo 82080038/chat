@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     });
-    localStorage.setItem("access_token", tokens.access_token);
+    localStorage.setItem("access_token", tokens.token);
     localStorage.setItem("refresh_token", tokens.refresh_token);
     const me = await api.get<Owner>("/auth/me");
     setOwner(me);
