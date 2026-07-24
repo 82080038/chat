@@ -7,7 +7,7 @@
 
 **Last updated:** 24 Juli 2026 (CYCLE-001 Docker setup)
 
-### Backend Services: 13/13 Complete
+### Backend Services: 14/14 Complete
 
 | # | Service | Phase | Methods | Endpoints | Status |
 |---|---------|-------|---------|-----------|--------|
@@ -24,6 +24,7 @@
 | 11 | DataIngestionService | 2 | 5 | 5 | ✅ Done |
 | 12 | ValuationService | 3 | 7 | 7 | ✅ Done |
 | 13 | AlertService | 6 | 9 | 9 | ✅ Done |
+| 14 | BrokerAdapterService | 7 | 8 | 8 | ✅ Done |
 
 ### Cross-Service Wiring: ✅ Done
 - ServiceHub: pre-trade risk check, auto-settlement, audit logging
@@ -41,16 +42,17 @@
 ### Test Results
 
 ```
-PHPUnit: 90 tests, 171 assertions — ALL PASS
+PHPUnit: 104 tests, 193 assertions — ALL PASS
 PSR-12: 0 violations on new files (1 pre-existing in ConfigServiceTest)
-Total endpoints: 199 (195 service + 4 cross-cutting)
-MySQL tables: 62 (schema designed, migrations not yet applied)
+Total endpoints: 207 (203 service + 4 cross-cutting)
+MySQL tables: 64 (schema designed, migrations not yet applied)
 ```
 
 ### Next Priorities (from unchecked items below)
 
-1. **Broker API integration** — real broker adapter
-2. **Production deployment** — Kubernetes, monitoring, security audit
+1. **Backtesting framework** — historical data replay, strategy testing
+2. **Paper trading** — simulated execution
+3. **Production deployment** — Kubernetes, monitoring, security audit
 
 ---
 
@@ -169,11 +171,15 @@ MySQL tables: 62 (schema designed, migrations not yet applied)
   - [x] Notification management (listNotifications, acknowledgeNotification)
 
 ## FASE 7 — EXECUTION & OMS (Minggu 15-18)
-- [x] Broker API Integration (TradingService — broker management)
-  - [ ] Research & select broker API (e.g., Mirae Asset, BNI Sekuritas, etc.)
-  - [ ] API authentication
-  - [ ] Account balance & portfolio sync
-  - [ ] Real-time price via broker
+- [x] Broker API Integration (BrokerAdapterService — MockBrokerAdapter for MVP)
+  - [x] BrokerAdapterInterface (authenticate, balance, holdings, price, order lifecycle)
+  - [x] MockBrokerAdapter (full mock implementation)
+  - [x] API authentication (POST /brokers/{id}/auth)
+  - [x] Account balance & portfolio sync (GET /brokers/{id}/balance, /holdings)
+  - [x] Real-time price feed (GET /brokers/{id}/price/{symbol})
+  - [x] Order placement via broker API (POST/DELETE/GET /brokers/{id}/orders)
+  - [ ] Research & select real broker API (e.g., Mirae Asset, BNI Sekuritas)
+  - [ ] Real adapter implementation
 - [x] Execution Engine (TradingService)
   - [x] Pre-trade risk check (decision policy_result)
   - [x] Order validation (order intent approval)

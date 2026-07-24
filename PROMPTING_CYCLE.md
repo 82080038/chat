@@ -104,23 +104,26 @@
 ## CURRENT TASK
 
 ```
-TASK ID: CYCLE-006
-TITLE: Broker API Real Integration
+TASK ID: CYCLE-007
+TITLE: Backtesting Framework
 PRIORITY: Medium
-FASE: 7 (Execution & OMS)
+FASE: 10 (Backtesting & Paper Trading)
 
 DESCRIPTION:
-Pilih broker (Mirae Asset / BNI Sekuritas / lainnya):
-- Implement BrokerAdapterInterface
-- API authentication, account balance, portfolio sync
-- Real-time price feed
-- Order placement via broker API
+Buat BacktestService di src/Backtesting/:
+- Historical data replay engine
+- Strategy testing interface
+- Performance metrics (Sharpe, Sortino, Max DD)
+- Schema: backtest_run, backtest_trade, backtest_metrics
+- Endpoints: POST /backtests, GET /backtests/{id}, GET /backtests/{id}/metrics
+- Gunakan BaseService, ApiException, declare(strict_types=1)
 
 FILES TO CREATE:
-- src/Trading/BrokerAdapterInterface.php
-- src/Trading/Adapters/MiraeAssetAdapter.php (or selected broker)
-- database/migrations/017_broker_adapter_schema.sql
-- tests/Trading/BrokerAdapterTest.php
+- src/Backtesting/BacktestServiceInterface.php
+- src/Backtesting/BacktestService.php
+- src/Backtesting/BacktestRoutes.php
+- database/migrations/018_backtest_schema.sql
+- tests/Backtesting/BacktestServiceTest.php
 
 VALIDATION:
 - php vendor/bin/phpunit --no-coverage (all pass)
@@ -132,12 +135,6 @@ VALIDATION:
 ## TASK QUEUE (After Current Task)
 
 ```
-CYCLE-007: Backtesting Framework
-  - Historical data replay engine
-  - Strategy testing interface
-  - Performance metrics (Sharpe, Sortino, Max DD)
-  - FASE: 10
-
 CYCLE-008: Paper Trading
   - Simulated execution engine
   - Virtual portfolio
@@ -224,7 +221,16 @@ CYCLE-010: Production Deployment
   - Build output: public/dashboard/ (200KB JS gzipped 64KB)
   - Dark theme, responsive layout, Lucide icons
 
-[NEXT] CYCLE-006: Broker API Real Integration
+[2026-07-24] CYCLE-006: Broker API Real Integration
+  - BrokerAdapterInterface: authenticate, getAccountBalance, getPortfolioHoldings, getRealtimePrice, placeOrder, cancelOrder, getOrderStatus
+  - MockBrokerAdapter: full mock implementation for MVP testing (auth, balance, holdings, prices, order lifecycle)
+  - BrokerAdapterService: adapter factory, credential management, API log table
+  - 8 endpoints: POST /brokers/{id}/auth, GET /brokers/{id}/balance, GET /brokers/{id}/holdings, GET /brokers/{id}/price/{symbol}, POST/DELETE/GET /brokers/{id}/orders, GET /brokers/api-logs
+  - Schema: trading.broker_credential + trading.broker_api_log (2 tables, 64 total)
+  - 14 tests/22 assertions, 104 tests/193 assertions total
+  - Service #14 registered, migrate.sh updated for 011-017
+
+[NEXT] CYCLE-007: Backtesting Framework
   - Status: NOT STARTED
 ```
 
