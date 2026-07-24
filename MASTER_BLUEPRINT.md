@@ -11022,6 +11022,364 @@ Implementation Phase (Phase 0: Governance)
 
 > Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
 > Semua informasi telah disimpan tanpa pengurangan.
-> Update: 23 Juli 2026 — Bagian 1-465 + Bagian 466-475 (Physical SQL Schema — MySQL DDL + PostgreSQL DDL + Migration Runner)
+> Update: 24 Juli 2026 — Bagian 1-475 + Bagian 476-485 (API Contract + Service Boundary + Implementation Phase 0)
+
+---
+
+## 476. API Contract — Overview
+
+Spesifikasi REST API lengkap dengan 164 endpoints across 10 bounded contexts.
+
+### File Locations
+
+```
+api/
+├── API_CONTRACT.md          # Batch 1: Conventions + Identity + Market Master
+├── API_CONTRACT_BATCH2.md   # Batch 2: Fundamental + Analytics
+├── API_CONTRACT_BATCH3.md   # Batch 3: Portfolio + Risk
+├── API_CONTRACT_BATCH4.md   # Batch 4: Trading + Settlement
+├── API_CONTRACT_BATCH5.md   # Batch 5: Governance + Config + Cross-cutting
+└── SERVICE_BOUNDARY_SPEC.md # Service Boundary Specification
+```
+
+### API Conventions
+
+- **Base URL**: `/api/v1`
+- **Auth**: Bearer JWT + X-API-Key + X-Tenant-ID
+- **Format**: JSON (request & response)
+- **Pagination**: `page`, `per_page` (default 50, max 200)
+- **Response Envelope**: `{ "data": [...], "meta": { ... } }`
+- **Error Format**: `{ "error": { "code", "message", "correlation_id" } }`
+- **Rate Limit**: 60 req/min, burst 10 req/sec
+- **Sparse Fieldset**: `?fields=id,name,status`
+- **Eager Loading**: `?include=portfolio,positions`
+- **Filtering**: `?filter[status]=ACTIVE`
+- **Sorting**: `?sort=-created_at,name`
+
+---
+
+## 477. API Contract — Endpoint Summary
+
+### Total: 164 Endpoints
+
+| Context | Endpoints |
+|---------|-----------|
+| Identity (Auth) | 8 |
+| Identity (Tenants) | 5 |
+| Identity (Users) | 7 |
+| Identity (Roles) | 8 |
+| Identity (API Clients) | 5 |
+| Market Master | 20 |
+| Fundamental | 10 |
+| Analytics | 18 |
+| Portfolio | 16 |
+| Risk | 12 |
+| Trading | 16 |
+| Settlement | 7 |
+| Governance | 14 |
+| Config | 14 |
+| Cross-Cutting | 4 |
+| **Total** | **164** |
+
+### HTTP Method Distribution
+
+| Method | Count |
+|--------|-------|
+| GET | 105 |
+| POST | 38 |
+| PUT | 13 |
+| DELETE | 8 |
+
+### Auth Distribution
+
+| Level | Endpoints |
+|-------|-----------|
+| Public | 12 |
+| Bearer | 118 |
+| Admin | 30 |
+| Internal | 1 |
+| Bearer/Self | 3 |
+
+---
+
+## 478. Service Boundary Specification — Overview
+
+10 services dengan clear interfaces, deployable as modular monolith sekarang, splittable ke microservices nanti.
+
+### Service Catalog
+
+| Service | Responsibility | DB Schema | Dependencies |
+|---------|---------------|-----------|--------------|
+| IdentityService | Auth, users, tenants, roles | identity | None (root) |
+| MarketMasterService | Instruments, exchanges, listings | market_master | None (root) |
+| FundamentalService | Financial data, news, indicators | fundamental | MarketMaster, Config |
+| AnalyticsService | Signals, forecasts, recommendations | analytics | MarketMaster, Portfolio, Config |
+| PortfolioService | Portfolios, positions, cash | portfolio | Identity, MarketMaster, Risk, Trading |
+| RiskService | Risk profiles, limits, assessments | risk | Identity, Portfolio |
+| TradingService | Decisions, orders, executions | trading | Portfolio, MarketMaster, Analytics, Risk, Identity, Governance |
+| SettlementService | Settlement, reconciliation | settlement | Trading, Portfolio, MarketMaster, Identity |
+| GovernanceService | Audit, approvals, policies, workflows | governance | Identity |
+| ConfigService | Configuration, feature flags, storage | config | Identity |
+
+### Communication Patterns
+
+```
+Inbound:  REST endpoints (via API Router)
+Internal: PHP interface (in-process calls)
+Outbound: Events (RabbitMQ)
+```
+
+### Event Flow (Trading Lifecycle)
+
+```
+recommendation.generated
+  → decision.created
+    → policy.evaluation_completed
+    → approval.requested → approval.approved
+    → order_intent.created
+    → order.submitted
+    → execution.filled
+      → position.updated
+      → cash_balance.updated
+      → risk_limit.check → risk_event (if breach)
+      → settlement.created → settlement.settled
+```
+
+---
+
+## 479. Implementation Phase 0 — Governance Skeleton
+
+### What Was Built
+
+```
+src/
+├── Core/
+│   ├── Application.php              # Singleton app container
+│   ├── BaseService.php              # Base service with UUID, pagination
+│   ├── Database/
+│   │   └── MySqlConnection.php      # PDO singleton (MySQL)
+│   ├── Http/
+│   │   ├── Request.php              # HTTP request with auth context
+│   │   ├── Response.php             # JSON response builder
+│   │   ├── Router.php               # Pattern-based router
+│   │   └── RequestParamsTrait.php   # Route param extraction
+│   └── Middleware/
+│       └── AuthMiddleware.php       # JWT bearer + admin guard
+├── Governance/
+│   ├── GovernanceServiceInterface.php  # Service contract
+│   ├── GovernanceService.php           # Full implementation
+│   └── GovernanceRoutes.php            # Route registration
+public/
+└── index.php                           # Application entry point
+tests/
+└── Governance/
+    └── GovernanceServiceTest.php       # Unit tests
+```
+
+### Core Framework Features
+
+- **Router**: Pattern-based (`/approvals/{id}`), middleware support
+- **Auth**: JWT Bearer token validation, admin guard
+- **Response**: Standardized JSON envelope with pagination meta
+- **BaseService**: UUID v7 generation, UTC timestamps, pagination helpers
+- **Database**: PDO singleton with prepared statements
+
+### GovernanceService Implementation
+
+```
+Methods implemented:
+  ✓ auditLog()              — Append-only audit trail
+  ✓ requestApproval()       — Create approval request
+  ✓ approve()               — Approve pending request
+  ✓ reject()                — Reject pending request
+  ✓ getApproval()           — Get by ID
+  ✓ listApprovals()         — List with filters & pagination
+  ✓ listAuditLogs()         — List with filters & pagination
+  ✓ createPolicy()          — Create policy with rules JSON
+  ✓ getPolicy()             — Get by ID with decoded rules
+  ✓ listPolicies()          — List with filters & pagination
+  ✓ evaluatePolicy()        — Evaluate policy against entity
+  ✓ startWorkflow()         — Create multi-step workflow
+  ✓ getWorkflow()           — Get by ID
+  ✓ completeWorkflowStep()  — Complete step, advance workflow
+```
+
+### Governance Routes Registered
+
+```
+GET    /audit-logs                              (admin)
+GET    /audit-logs/{id}                         (admin)
+GET    /audit-logs/entity/{entityType}/{entityId} (admin)
+GET    /approvals                               (bearer)
+GET    /approvals/{id}                          (bearer)
+POST   /approvals/{id}/approve                  (bearer)
+POST   /approvals/{id}/reject                   (bearer)
+GET    /policies                                (bearer)
+POST   /policies                                (admin)
+GET    /policies/{id}                           (bearer)
+POST   /policies/{id}/evaluate                  (bearer)
+GET    /workflows                               (bearer)
+GET    /workflows/{id}                          (bearer)
+POST   /workflows/{id}/steps/{stepId}/complete  (bearer)
+POST   /workflows/{id}/cancel                   (bearer)
+```
+
+### Infrastructure Files
+
+```
+composer.json     — PHP 8.2+, Ramsey UUID, Firebase JWT, Predis, PhpAmqpLib, Monolog
+.env.example      — All environment variables (DB, Redis, RabbitMQ, S3, JWT)
+.gitignore        — vendor/, .env, storage/logs, etc.
+README.md         — Quick start guide
+```
+
+---
+
+## 480. Implementation — Composer Dependencies
+
+```
+require:
+  php >= 8.2
+  ext-pdo, ext-json
+  ramsey/uuid ^4.7         — UUID v7 generation
+  firebase/php-jwt ^6.10   — JWT authentication
+  predis/predis ^2.0       — Redis client
+  php-amqplib/php-amqplib ^3.6 — RabbitMQ client
+  monolog/monolog ^3.7     — Logging
+  vlucas/phpdotenv ^5.6    — Environment loading
+
+require-dev:
+  phpunit/phpunit ^11.0    — Testing
+  squizlabs/php_codesniffer ^3.10 — Code style
+```
+
+---
+
+## 481. Implementation — How to Run
+
+```bash
+# 1. Install PHP dependencies
+composer install
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env with your DB credentials
+
+# 3. Run migrations
+./database/migrate.sh up
+
+# 4. Seed data
+./database/migrate.sh seed
+
+# 5. Start dev server
+php -S localhost:8000 -t public/
+
+# 6. Test endpoints
+curl http://localhost:8000/api/v1/health
+curl http://localhost:8000/api/v1/
+```
+
+---
+
+## 482. Implementation — Next Services to Build
+
+```
+Phase 0 (DONE):
+  ✓ Core framework (Router, Request, Response, Auth, BaseService)
+  ✓ GovernanceService (audit, approval, policy, workflow)
+
+Phase 1 (NEXT):
+  → IdentityService (register, login, JWT, users, roles)
+  → ConfigService (configuration, feature flags, system params)
+
+Phase 2:
+  → MarketMasterService (instruments, exchanges, listings)
+  → FundamentalService (financial statements, news)
+
+Phase 3:
+  → AnalyticsService (signals, forecasts, recommendations)
+  → RiskService (risk profiles, limits, assessments)
+
+Phase 4:
+  → PortfolioService (portfolios, positions, cash)
+  → TradingService (decisions, orders, executions)
+  → SettlementService (settlement, reconciliation)
+```
+
+---
+
+## 483. Yang Sudah Terselesaikan — Full Progress (Final)
+
+```
+System Constitution
+    ↓
+Architecture Contradiction Audit
+    ↓
+Technology Decision Record (13 ADRs, 15 Non-Negotiable Rules)
+    ↓
+Domain Model (12 Bounded Contexts + 1 Transversal)
+    ↓
+Bounded Context (Entities, Ownership, Dependencies)
+    ↓
+Canonical Data Model (10 Data Principles, Storage Architecture)
+    ↓
+Data Architecture (Temporal Model, PIT Query, Versioning, Trust Levels)
+    ↓
+Canonical Data Contract (15 Items — ALL COMPLETE)
+    ↓
+Logical Database Architecture & ERD (10 Contexts, 61 Tables — ALL COMPLETE)
+    ↓
+Physical SQL Schema (MySQL DDL + PostgreSQL DDL + Migration Runner — ALL COMPLETE)
+    ↓
+API Contract (164 Endpoints, 10 Contexts — ALL COMPLETE)
+    ↓
+Service Boundary Specification (10 Services, Event Flow — ALL COMPLETE)
+    ↓
+Implementation Phase 0: Governance Skeleton (Core + GovernanceService — COMPLETE)
+    ↓
+Implementation Phase 1: Identity + Config     ← NEXT
+```
+
+---
+
+## 484. Final Architecture Summary
+
+| Layer | Technology | Status |
+|-------|-----------|--------|
+| Blueprint | MASTER_BLUEPRINT.md (485 sections) | ✅ |
+| Database (MySQL) | 61 tables, 10 schemas, 107 indexes | ✅ |
+| Database (PostgreSQL) | 8 hypertables + 2 meta + 1 CAGG | ✅ |
+| Migration Runner | migrate.sh (up/seed/down) | ✅ |
+| API Contract | 164 endpoints, REST/JSON | ✅ |
+| Service Boundaries | 10 services, interfaces, event flow | ✅ |
+| Core Framework | Router, Auth, Response, BaseService | ✅ |
+| GovernanceService | Audit, Approval, Policy, Workflow | ✅ |
+| IdentityService | — | TODO |
+| ConfigService | — | TODO |
+| MarketMasterService | — | TODO |
+| FundamentalService | — | TODO |
+| AnalyticsService | — | TODO |
+| RiskService | — | TODO |
+| PortfolioService | — | TODO |
+| TradingService | — | TODO |
+| SettlementService | — | TODO |
+
+---
+
+## 485. Final Statement
+
+> **Blueprint lengkap. 485 bagian. ~11.200 baris.**
 >
-> TOTAL: 475 BAGIAN
+> **Dari Constitution → TDR → Domain Model → Data Contract → Logical ERD → Physical DDL → API Contract → Service Boundary → Implementation Phase 0.**
+>
+> **Core framework + GovernanceService sudah built. 9 services lagi siap dibangun mengikuti pattern yang sama.**
+>
+> **Next: IdentityService + ConfigService → MarketMasterService → ... → full platform.**
+
+---
+
+> Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
+> Semua informasi telah disimpan tanpa pengurangan.
+> Update: 24 Juli 2026 — Bagian 1-475 + Bagian 476-485 (API Contract + Service Boundary + Implementation Phase 0)
+>
+> TOTAL: 485 BAGIAN

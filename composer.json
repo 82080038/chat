@@ -1,0 +1,37 @@
+{
+    "name": "capital-market-platform/platform",
+    "description": "Global & Indonesia Capital Market Intelligence, Decision, Risk & Execution Platform",
+    "type": "project",
+    "version": "0.1.0",
+    "require": {
+        "php": ">=8.2",
+        "ext-pdo": "*",
+        "ext-json": "*",
+        "ramsey/uuid": "^4.7",
+        "firebase/php-jwt": "^6.10",
+        "predis/predis": "^2.0",
+        "php-amqplib/php-amqplib": "^3.6",
+        "monolog/monolog": "^3.7",
+        "vlucas/phpdotenv": "^5.6"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0",
+        "squizlabs/php_codesniffer": "^3.10"
+    },
+    "autoload": {
+        "psr-4": {
+            "Platform\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Platform\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "sniff": "phpcs --standard=PSR12 src/",
+        "migrate": "bash database/migrate.sh up",
+        "seed": "bash database/migrate.sh seed"
+    }
+}
