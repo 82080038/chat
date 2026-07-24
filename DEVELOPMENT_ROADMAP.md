@@ -7,7 +7,7 @@
 
 **Last updated:** 24 Juli 2026 (CYCLE-001 Docker setup)
 
-### Backend Services: 16/16 Complete
+### Backend Services: 17/17 Complete
 
 | # | Service | Phase | Methods | Endpoints | Status |
 |---|---------|-------|---------|-----------|--------|
@@ -27,6 +27,7 @@
 | 14 | BrokerAdapterService | 7 | 8 | 8 | ✅ Done |
 | 15 | BacktestService | 10 | 7 | 6 | ✅ Done |
 | 16 | PaperTradingService | 10 | 8 | 8 | ✅ Done |
+| 17 | AIEngineService | 9 | 7 | 7 | ✅ Done |
 
 ### Cross-Service Wiring: ✅ Done
 - ServiceHub: pre-trade risk check, auto-settlement, audit logging
@@ -44,16 +45,15 @@
 ### Test Results
 
 ```
-PHPUnit: 132 tests, 247 assertions — ALL PASS
+PHPUnit: 150 tests, 279 assertions — ALL PASS
 PSR-12: 0 violations on new files (1 pre-existing in ConfigServiceTest)
-Total endpoints: 221 (217 service + 4 cross-cutting)
-MySQL tables: 70 (schema designed, migrations not yet applied)
+Total endpoints: 228 (224 service + 4 cross-cutting)
+MySQL tables: 72 (schema designed, migrations not yet applied)
 ```
 
 ### Next Priorities (from unchecked items below)
 
-1. **AI engine** — NLP, pattern recognition, anomaly detection
-2. **Production deployment** — Kubernetes, monitoring, security audit
+1. **Production deployment** — Kubernetes, monitoring, security audit
 
 ---
 
@@ -214,10 +214,10 @@ MySQL tables: 70 (schema designed, migrations not yet applied)
   - [ ] Erroneous order detection
 
 ## FASE 9 — AI ENGINE (Minggu 20-22)
-- [ ] NLP/AI for news analysis
-- [ ] Pattern recognition
+- [x] NLP/AI for news analysis (AIEngineService — sentiment, entity, event extraction)
+- [x] Pattern recognition (chart patterns: DOUBLE_TOP, DOUBLE_BOTTOM, triangles, channel)
 - [ ] Predictive models (optional)
-- [ ] Anomaly detection
+- [x] Anomaly detection (Z-score based, SPIKE/DROP)
 - [ ] Smart alerts
 
 ## FASE 10 — BACKTESTING & PAPER TRADING (Minggu 23-24)
