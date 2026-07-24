@@ -104,29 +104,29 @@
 ## CURRENT TASK
 
 ```
-TASK ID: CYCLE-002
-TITLE: Data Ingestion — IDX/BEI market data feeder
+TASK ID: CYCLE-003
+TITLE: Valuation Engine — DCF, relative valuation, fair value
 PRIORITY: High
-FASE: 2 (Data Ingestion)
+FASE: 3 (Analysis Engines)
 
 DESCRIPTION:
-Buat DataIngestionService di src/DataIngestion/:
-- Feeder untuk OHLCV daily dari API eksternal (simulasi/mock untuk MVP)
-- Schema: tabel ohlcv_daily di MySQL untuk MVP
-- Endpoints: POST /ingestion/ohlcv, GET /ingestion/status
-- Interface → Service → Routes → Tests pattern
+Tambah methods ke FundamentalService atau buat ValuationService baru:
+- DCF model (NPV dari projected FCF)
+- Relative valuation (P/E, P/BV peer comparison)
+- Fair value calculation (weighted blend)
+- Endpoints: POST /valuations, GET /valuations/{id}, GET /valuations/instrument/{instrumentId}
 - Gunakan BaseService, ApiException, declare(strict_types=1)
 
 FILES TO CREATE:
-- src/DataIngestion/DataIngestionServiceInterface.php
-- src/DataIngestion/DataIngestionService.php
-- src/DataIngestion/DataIngestionRoutes.php
-- database/migrations/014_ohlcv_daily_schema.sql
-- tests/DataIngestion/DataIngestionServiceTest.php
+- src/Valuation/ValuationServiceInterface.php
+- src/Valuation/ValuationService.php
+- src/Valuation/ValuationRoutes.php
+- database/migrations/015_valuation_schema.sql
+- tests/Valuation/ValuationServiceTest.php
 
 VALIDATION:
 - php vendor/bin/phpunit --no-coverage (all pass)
-- php vendor/bin/phpcs --standard=PSR12 src/ tests/ (0 violations)
+- php vendor/bin/phpcs --standard=PSR12 src/ tests/ (0 violations on new files)
 - php -l <new_files> (syntax OK)
 ```
 
@@ -135,13 +135,6 @@ VALIDATION:
 ## TASK QUEUE (After Current Task)
 
 ```
-CYCLE-003: Valuation Engine — DCF, relative valuation, fair value
-  - Tambah methods ke FundamentalService atau buat ValuationService baru
-  - DCF model (NPV dari projected FCF)
-  - Relative valuation (P/E, P/BV peer comparison)
-  - Fair value calculation (weighted blend)
-  - FASE: 3
-
 CYCLE-004: Alert System — price, signal, risk alerts
   - Buat AlertService di src/Alert/
   - Schema: tabel alert, alert_rule, alert_notification
@@ -227,7 +220,14 @@ CYCLE-010: Production Deployment
   - 60 tests/118 assertions still pass, PSR-12 clean
   - Docker not installed on dev machine — compose file ready, untested live
 
-[NEXT] CYCLE-002: Data Ingestion — IDX/BEI market data feeder
+[2026-07-24] CYCLE-002: Data Ingestion — IDX/BEI market data feeder
+  - DataIngestionService: ingestOhlcv, getOhlcv, listOhlcv, getOhlcvHistory, getIngestionStatus
+  - 5 endpoints: POST/GET /ingestion/ohlcv, GET /ingestion/ohlcv/{id}, GET /ingestion/ohlcv/instrument/{instrumentId}, GET /ingestion/status
+  - Schema: data_ingestion.ohlcv_daily + ingestion_log (2 tables, 58 total)
+  - 7 tests/12 assertions, 67 tests/130 assertions total
+  - Service #11 registered, migrate.sh updated for 011-014
+
+[NEXT] CYCLE-003: Valuation Engine — DCF, relative valuation, fair value
   - Status: NOT STARTED
 ```
 

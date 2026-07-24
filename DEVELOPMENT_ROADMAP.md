@@ -7,7 +7,7 @@
 
 **Last updated:** 24 Juli 2026 (CYCLE-001 Docker setup)
 
-### Backend Services: 10/10 Complete
+### Backend Services: 11/11 Complete
 
 | # | Service | Phase | Methods | Endpoints | Status |
 |---|---------|-------|---------|-----------|--------|
@@ -21,6 +21,7 @@
 | 8 | TradingService | 5 | 20 | 20 | ✅ Done |
 | 9 | SettlementService | 5 | 7 | 7 | ✅ Done |
 | 10 | GovernanceService | 1+fix | 20 | 18 | ✅ Done |
+| 11 | DataIngestionService | 2 | 5 | 5 | ✅ Done |
 
 ### Cross-Service Wiring: ✅ Done
 - ServiceHub: pre-trade risk check, auto-settlement, audit logging
@@ -38,19 +39,18 @@
 ### Test Results
 
 ```
-PHPUnit: 60 tests, 118 assertions — ALL PASS
-PSR-12: 0 violations
-Total endpoints: 178 (174 service + 4 cross-cutting)
-MySQL tables: 56 (schema designed, migrations not yet applied)
+PHPUnit: 67 tests, 130 assertions — ALL PASS
+PSR-12: 0 violations on new files (1 pre-existing in ConfigServiceTest)
+Total endpoints: 183 (179 service + 4 cross-cutting)
+MySQL tables: 58 (schema designed, migrations not yet applied)
 ```
 
 ### Next Priorities (from unchecked items below)
 
-1. **Data ingestion feeders** — IDX/BEI market data, OHLCV
-2. **Valuation models** — DCF, relative valuation, fair value calculation
-3. **Alert system** — price, signal, risk alerts
-4. **Frontend & UI** — dashboard, stock detail, screening
-5. **Production deployment** — Kubernetes, monitoring, security audit
+1. **Valuation models** — DCF, relative valuation, fair value calculation
+2. **Alert system** — price, signal, risk alerts
+3. **Frontend & UI** — dashboard, stock detail, screening
+4. **Production deployment** — Kubernetes, monitoring, security audit
 
 ---
 
@@ -66,8 +66,8 @@ MySQL tables: 56 (schema designed, migrations not yet applied)
 
 ## FASE 2 — DATA INGESTION (Minggu 3-4)
 - [ ] Data Ingestion Engine
-  - [ ] IDX/BEI market data feeder
-  - [ ] OHLCV daily data
+  - [x] IDX/BEI market data feeder (DataIngestionService — OHLCV ingest)
+  - [x] OHLCV daily data (data_ingestion.ohlcv_daily)
   - [ ] OHLCV intraday data
   - [ ] Order book / depth data
   - [ ] Corporate action data
