@@ -11627,6 +11627,215 @@ Semua bucket bersifat pribadi. Istilah `user exports` diganti menjadi `owner exp
 
 > Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
 > Semua informasi telah disimpan tanpa pengurangan.
-> Update: 24 Juli 2026 — Bagian 1-485 + Bagian 486-493 (Architecture Correction: Single-Owner Personal Application)
+> Update: 24 Juli 2026 — Bagian 1-493 + Bagian 494-501 (Implementation Phase 1: IdentityService + ConfigService)
+
+---
+
+## 494. Implementation Phase 1 — Scope
+
+Phase 1 mengimplementasikan dua bounded context pertama setelah core framework:
+
+1. **IdentityService** untuk setup satu owner, login, JWT, refresh rotation, logout, password management, dan preferences.
+2. **ConfigService** untuk configuration versioning, feature flags, system parameters, storage metadata, access logs, dan owner activity logs.
+
+Seluruh implementasi mengikuti keputusan single-owner pada Bagian 486-493.
+
+---
+
+## 495. IdentityService — Implemented Capabilities
+
+### Endpoints
+
+```
+POST /api/v1/auth/setup
+POST /api/v1/auth/login
+POST /api/v1/auth/refresh
+POST /api/v1/auth/logout
+GET  /api/v1/auth/me
+POST /api/v1/auth/change-password
+GET  /api/v1/auth/preferences
+PUT  /api/v1/auth/preferences
+```
+
+### Security Controls
+
+- owner setup hanya dapat dilakukan satu kali;
+- singleton owner enforced oleh unique `singleton_key = 1`;
+- password minimum 12 karakter dengan uppercase, lowercase, angka, dan simbol;
+- password menggunakan PHP `password_hash()` dan `password_verify()`;
+- timing-resistant dummy password verification jika email tidak ditemukan;
+- lockout setelah configurable failed attempts;
+- automatic unlock setelah lock interval berakhir;
+- JWT HS256 dengan `iss`, `sub`, `owner_id`, `jti`, `iat`, `nbf`, dan `exp`;
+- minimum JWT secret 32 karakter;
+- refresh token 256-bit random, hanya hash SHA-256 yang disimpan;
+- refresh-token rotation; token lama langsung revoked;
+- logout merevoke session berdasarkan access `jti`;
+- password change merevoke seluruh active sessions;
+- access token harus memiliki active, unrevoked database session;
+- setup, login, logout, dan password change masuk audit + owner activity log.
+
+---
+
+## 496. Identity Physical Schema — Final
+
+Identity sekarang memiliki tiga tabel:
+
+```
+identity.owner_account
+identity.owner_preference
+identity.owner_session
+```
+
+`owner_session` diperlukan karena JWT access tanpa server-side session tidak dapat direvoke secara langsung.
+
+### owner_session Security Fields
+
+```
+session_id
+owner_id
+refresh_token_hash
+access_jti
+ip_address
+user_agent
+expires_at
+revoked_at
+created_at
+last_used_at
+```
+
+Dengan penambahan `owner_session`, total MySQL physical tables berubah dari koreksi awal 55 menjadi **56 tables**. Ini bukan kembali ke multi-user; tabel tersebut hanya menyimpan session milik satu owner.
+
+---
+
+## 497. ConfigService — Implemented Capabilities
+
+### Configuration
+
+- create configuration;
+- list/filter configuration;
+- lookup by ID atau key;
+- immutable versioning: versi lama menjadi `ARCHIVED`;
+- active version memiliki temporal validity;
+- supported types: STRING, INTEGER, DECIMAL, BOOLEAN, JSON, ENCRYPTED;
+- sensitive values dimasking pada API response;
+- ENCRYPTED menggunakan AES-256-GCM dengan `APP_ENCRYPTION_KEY`.
+
+### Feature Flags
+
+- create, list, get, update;
+- boolean enabled/disabled;
+- effective_from/effective_until support;
+- Redis key `cache:feature_flag:{key}` dengan TTL 60 detik;
+- invalidation saat flag diubah.
+
+### System Parameters
+
+- list dan get;
+- update hanya jika `is_readonly = false`;
+- typed serialization.
+
+### Storage Objects
+
+- metadata registration;
+- list active objects;
+- lookup by ID;
+- soft delete menggunakan `deleted_at`.
+
+### Logging
+
+- centralized API access logging dari Router;
+- owner activity log retrieval;
+- logging bersifat fail-open agar kegagalan log tidak menggagalkan response bisnis.
+
+---
+
+## 498. ConfigService — REST Routes
+
+```
+GET    /configurations
+POST   /configurations
+GET    /configurations/key/{key}
+GET    /configurations/{id}
+PUT    /configurations/{id}
+
+GET    /feature-flags
+POST   /feature-flags
+GET    /feature-flags/key/{key}
+GET    /feature-flags/{id}
+PUT    /feature-flags/{id}
+
+GET    /system-parameters
+GET    /system-parameters/{key}
+PUT    /system-parameters/{key}
+
+GET    /storage-objects
+POST   /storage-objects
+GET    /storage-objects/{id}
+DELETE /storage-objects/{id}
+
+GET    /api-access-logs
+GET    /owner-activity-logs
+```
+
+Semua route ConfigService membutuhkan Bearer JWT owner.
+
+---
+
+## 499. Core Framework Improvements
+
+Phase 1 juga memperkuat core framework:
+
+- `ApiException` menyediakan status, error code, message, dan field errors;
+- Router menangani domain errors dan unexpected errors secara terpusat;
+- response error tidak membocorkan stack trace;
+- AuthMiddleware mendelegasikan verification ke IdentityService;
+- Request menyimpan `owner_id` dan access `jti`;
+- centralized API access logging;
+- `CacheStoreInterface` agar cache dapat diuji dan diganti;
+- `RedisCacheStore` fail-open jika Redis tidak tersedia;
+- configuration cache menggunakan `cache:config:{key}` dengan TTL 300 detik.
+
+---
+
+## 500. Phase 1 Environment Contract
+
+Environment baru:
+
+```
+JWT_SECRET=<minimum 32 random characters>
+JWT_TTL=3600
+JWT_REFRESH_TTL=86400
+AUTH_MAX_ATTEMPTS=5
+AUTH_LOCK_SECONDS=900
+APP_ENCRYPTION_KEY=<base64 encoded 32-byte key>
+```
+
+Secret generation:
+
+```bash
+php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+php -r "echo base64_encode(random_bytes(32)), PHP_EOL;"
+```
+
+Tidak boleh commit `.env` atau secret aktual ke repository.
+
+---
+
+## 501. Implementation Phase 1 — Final Statement
+
+> **IdentityService complete: one-time owner setup, secure login, JWT, revocable sessions, refresh rotation, logout, lockout, password change, and preferences.**
 >
-> TOTAL: 493 BAGIAN
+> **ConfigService complete: versioned configurations, encrypted values, feature flags, system parameters, storage metadata, API access logs, owner activity logs, and Redis cache contract.**
+>
+> **MySQL physical model now contains 56 tables, including one owner_session table required for JWT revocation.**
+>
+> **Next: Implementation Phase 2 — MarketMasterService + FundamentalService.**
+
+---
+
+> Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
+> Semua informasi telah disimpan tanpa pengurangan.
+> Update: 24 Juli 2026 — Bagian 1-493 + Bagian 494-501 (Implementation Phase 1: IdentityService + ConfigService)
+>
+> TOTAL: 501 BAGIAN

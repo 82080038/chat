@@ -14,6 +14,7 @@ final class Request
     private array $query = [];
     private array $body = [];
     private ?string $ownerId = null;
+    private ?string $accessJti = null;
 
     public function __construct()
     {
@@ -87,5 +88,15 @@ final class Request
     public function setOwnerId(?string $ownerId): void
     {
         $this->ownerId = $ownerId;
+    }
+
+    public function getAccessJti(): ?string
+    {
+        return $this->accessJti;
+    }
+
+    public function setAccessJti(?string $accessJti): void
+    {
+        $this->accessJti = $accessJti;
     }
 }

@@ -117,7 +117,7 @@ The application supports exactly one owner account. There are no tenants, additi
 |--------|------|-------------|------|
 | POST | `/auth/setup` | Create the only owner account; available once | Public/First-run |
 | POST | `/auth/login` | Owner login, returns JWT | Public |
-| POST | `/auth/refresh` | Refresh owner JWT | Bearer |
+| POST | `/auth/refresh` | Rotate refresh token and issue a new JWT | Refresh token |
 | POST | `/auth/logout` | Revoke current owner token | Bearer |
 | GET | `/auth/me` | Get owner profile | Bearer |
 | POST | `/auth/change-password` | Change owner password | Bearer |

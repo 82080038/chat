@@ -137,7 +137,8 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
         $countStmt->execute($params);
         $total = (int) $countStmt->fetchColumn();
 
-        $sql = "SELECT * FROM governance.approval {$whereClause} ORDER BY created_at DESC LIMIT {$perPage} OFFSET {$offset}";
+        $sql = "SELECT * FROM governance.approval {$whereClause} "
+            . "ORDER BY created_at DESC LIMIT {$perPage} OFFSET {$offset}";
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         $items = $stmt->fetchAll();
@@ -172,7 +173,8 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
         $countStmt->execute($params);
         $total = (int) $countStmt->fetchColumn();
 
-        $sql = "SELECT * FROM governance.audit_log {$whereClause} ORDER BY created_at DESC LIMIT {$perPage} OFFSET {$offset}";
+        $sql = "SELECT * FROM governance.audit_log {$whereClause} "
+            . "ORDER BY created_at DESC LIMIT {$perPage} OFFSET {$offset}";
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         $items = $stmt->fetchAll();
@@ -242,7 +244,8 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
         $countStmt->execute($params);
         $total = (int) $countStmt->fetchColumn();
 
-        $sql = "SELECT * FROM governance.policy {$whereClause} ORDER BY created_at DESC LIMIT {$perPage} OFFSET {$offset}";
+        $sql = "SELECT * FROM governance.policy {$whereClause} "
+            . "ORDER BY created_at DESC LIMIT {$perPage} OFFSET {$offset}";
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         $items = $stmt->fetchAll();

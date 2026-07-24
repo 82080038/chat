@@ -91,11 +91,16 @@ Events Published:
 
 Internal Interface:
   IdentityServiceInterface
-    - setupOwner(array $data): array
-    - authenticate(string $email, string $password): array
-    - verifyToken(string $jwt): array
+    - isSetupRequired(): bool
+    - setupOwner(array $data, array $context): array
+    - authenticate(string $email, string $password, array $context): array
+    - refresh(string $refreshToken, array $context): array
+    - logout(string $accessJti, array $context): void
+    - verifyAccessToken(string $jwt): array
     - getOwner(): ?array
-    - updatePreferences(array $data): array
+    - changePassword(string $ownerId, string $currentPassword, string $newPassword): void
+    - getPreferences(string $ownerId): array
+    - updatePreferences(string $ownerId, array $data): array
 ```
 
 ### 3.2 MarketMasterService

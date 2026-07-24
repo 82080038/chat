@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Platform\Core\Middleware;
 
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
 use Platform\Core\Application;
 use Platform\Core\Http\Request;
 use Platform\Core\Http\Response;
+use Platform\Identity\IdentityServiceInterface;
 
 final class AuthMiddleware
 {
@@ -19,18 +18,14 @@ final class AuthMiddleware
             return Response::error(401, 'UNAUTHORIZED', 'Missing or invalid Authorization header');
         }
 
-        $token = substr($authHeader, 7);
-        try {
-            $secret = Application::getInstance()->getConfig('JWT_SECRET', 'change-me');
-            $decoded = JWT::decode($token, new Key($secret, 'HS256'));
-            $ownerId = $decoded->owner_id ?? null;
-            if (!is_string($ownerId) || $ownerId === '') {
-                return Response::error(401, 'INVALID_TOKEN', 'Token does not identify the owner');
-            }
-            $request->setOwnerId($ownerId);
-        } catch (\Exception $e) {
-            return Response::error(401, 'INVALID_TOKEN', 'Invalid or expired token');
+        $identity = Application::getInstance()->getService('identity');
+        if (!$identity instanceof IdentityServiceInterface) {
+            return Response::error(503, 'IDENTITY_UNAVAILABLE', 'Identity service is unavailable');
         }
+
+        $claims = $identity->verifyAccessToken(substr($authHeader, 7));
+        $request->setOwnerId((string) $claims['owner_id']);
+        $request->setAccessJti((string) $claims['jti']);
         return null;
     }
 

@@ -55,6 +55,11 @@ final class Response
         return $this;
     }
 
+    public function getStatusCode(): int
+    {
+        return $this->statusCode;
+    }
+
     public function send(): void
     {
         http_response_code($this->statusCode);

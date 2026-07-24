@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Platform\Core\Http;
 
+use Platform\Config\ConfigServiceInterface;
+use Platform\Core\Application;
+use Platform\Core\Exceptions\ApiException;
+use Throwable;
+
 final class Router
 {
     private array $routes = [];
@@ -65,22 +70,41 @@ final class Router
             }
 
             if (preg_match($route['pattern'], $path, $matches)) {
+                $startedAt = microtime(true);
                 $params = array_filter($matches, fn($key) => !is_int($key), ARRAY_FILTER_USE_KEY);
                 $request->setParams($params);
 
-                // Run middleware
-                foreach ($route['middleware'] as $mwName) {
-                    if (isset($this->middleware[$mwName])) {
-                        $result = ($this->middleware[$mwName])($request);
-                        if ($result instanceof Response) {
-                            $result->send();
-                            return;
+                try {
+                    foreach ($route['middleware'] as $mwName) {
+                        if (isset($this->middleware[$mwName])) {
+                            $result = ($this->middleware[$mwName])($request);
+                            if ($result instanceof Response) {
+                                $this->logAccess($request, $result, $startedAt);
+                                $result->send();
+                                return;
+                            }
                         }
                     }
-                }
 
-                $response = ($route['handler'])($request);
-                if ($response instanceof Response) {
+                    $response = ($route['handler'])($request);
+                    if ($response instanceof Response) {
+                        $this->logAccess($request, $response, $startedAt);
+                        $response->send();
+                        return;
+                    }
+                } catch (ApiException $exception) {
+                    $response = Response::error(
+                        $exception->getStatusCode(),
+                        $exception->getErrorCode(),
+                        $exception->getMessage(),
+                        $exception->getFieldErrors()
+                    );
+                    $this->logAccess($request, $response, $startedAt);
+                    $response->send();
+                    return;
+                } catch (Throwable) {
+                    $response = Response::error(500, 'INTERNAL_ERROR', 'An unexpected error occurred');
+                    $this->logAccess($request, $response, $startedAt);
                     $response->send();
                     return;
                 }
@@ -94,5 +118,26 @@ final class Router
     {
         $regex = preg_replace('/\{([a-zA-Z_]+)\}/', '(?P<$1>[^/]+)', $pattern);
         return '#^' . $regex . '$#';
+    }
+
+    private function logAccess(Request $request, Response $response, float $startedAt): void
+    {
+        try {
+            $service = Application::getInstance()->getService('config');
+            if (!$service instanceof ConfigServiceInterface) {
+                return;
+            }
+            $service->logApiAccess([
+                'endpoint' => $request->getPath(),
+                'method' => $request->getMethod(),
+                'status_code' => $response->getStatusCode(),
+                'response_time_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+                'request_size' => isset($_SERVER['CONTENT_LENGTH']) ? (int) $_SERVER['CONTENT_LENGTH'] : null,
+                'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+                'user_agent' => $request->getHeader('user-agent'),
+                'correlation_id' => $request->getHeader('x-correlation-id'),
+            ]);
+        } catch (Throwable) {
+        }
     }
 }

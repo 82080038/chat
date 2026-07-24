@@ -13,6 +13,10 @@ composer install
 # 2. Copy environment file
 cp .env.example .env
 
+# Generate secrets, then place the output in .env
+php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+php -r "echo base64_encode(random_bytes(32)), PHP_EOL;"
+
 # 3. Run database migrations
 ./database/migrate.sh up
 
@@ -50,8 +54,21 @@ php -S localhost:8000 -t public/
 │   │   │   ├── Response.php
 │   │   │   ├── Router.php
 │   │   │   └── RequestParamsTrait.php
+│   │   ├── Cache/
+│   │   │   ├── CacheStoreInterface.php
+│   │   │   └── RedisCacheStore.php
+│   │   ├── Exceptions/
+│   │   │   └── ApiException.php
 │   │   └── Middleware/
 │   │       └── AuthMiddleware.php
+│   ├── Identity/
+│   │   ├── IdentityServiceInterface.php
+│   │   ├── IdentityService.php
+│   │   └── IdentityRoutes.php
+│   ├── Config/
+│   │   ├── ConfigServiceInterface.php
+│   │   ├── ConfigService.php
+│   │   └── ConfigRoutes.php
 │   └── Governance/
 │       ├── GovernanceServiceInterface.php
 │       ├── GovernanceService.php
@@ -73,9 +90,10 @@ php -S localhost:8000 -t public/
 │   ├── API_CONTRACT_BATCH5.md
 │   └── SERVICE_BOUNDARY_SPEC.md
 ├── tests/
+│   ├── Identity/
+│   ├── Config/
 │   └── Governance/
-│       └── GovernanceServiceTest.php
-├── MASTER_BLUEPRINT.md         # Complete blueprint (493 sections)
+├── MASTER_BLUEPRINT.md         # Complete blueprint (501 sections)
 └── DEVELOPMENT_ROADMAP.md
 ```
 
@@ -94,7 +112,8 @@ See `MASTER_BLUEPRINT.md` for the complete system blueprint including:
 - Domain Model & Bounded Contexts
 - Canonical Data Model
 - Canonical Data Contract (15 items)
-- Logical ERD corrected for single-owner operation (10 contexts, 55 MySQL tables)
+- Logical ERD corrected for single-owner operation (10 contexts, 56 MySQL tables including revocable owner sessions)
 - Physical SQL Schema (MySQL + PostgreSQL)
 - API Contract (138 owner-authenticated endpoints)
 - Service Boundary Specification
+- Phase 1 implementation: IdentityService + ConfigService
