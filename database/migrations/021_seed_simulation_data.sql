@@ -109,3 +109,31 @@ INSERT INTO analytics.signal (signal_id, instrument_id, signal_type, direction, 
 -- Backtest
 INSERT INTO backtesting.backtest_run (run_id, strategy_name, instrument_id, start_date, end_date, initial_capital, status, created_at) VALUES
   (UUID(), 'BBCA Momentum Strategy', @bbca_inst, '2025-01-01', '2025-06-30', 100000000, 'COMPLETED', NOW());
+
+-- ----------------------------------------------------------------------------
+-- Risk Profile (1)
+-- ----------------------------------------------------------------------------
+INSERT INTO risk.risk_profile (risk_profile_id, name, risk_tolerance, max_single_position, max_sector_exposure, max_portfolio_beta, max_var_pct, max_drawdown_pct, status) VALUES
+  (UUID(), 'Conservative Growth', 'MODERATE', 15.000000, 40.000000, 1.2000, 5.000000, 10.000000, 'ACTIVE');
+
+-- ----------------------------------------------------------------------------
+-- Portfolios (3)
+-- ----------------------------------------------------------------------------
+SET @risk_id = (SELECT risk_profile_id FROM risk.risk_profile LIMIT 1);
+INSERT INTO portfolio.portfolio (portfolio_id, name, description, base_currency, portfolio_type, status, inception_date, risk_profile_id) VALUES
+  (UUID(), 'Growth Portfolio', 'Long-term growth focused on blue-chip IDX stocks', 'IDR', 'LIVE', 'ACTIVE', '2025-01-01', @risk_id),
+  (UUID(), 'Dividend Portfolio', 'Income-focused portfolio with high-dividend stocks', 'IDR', 'LIVE', 'ACTIVE', '2025-01-15', @risk_id),
+  (UUID(), 'Speculative Portfolio', 'High-risk momentum trading', 'IDR', 'PAPER', 'ACTIVE', '2025-03-01', @risk_id);
+
+-- ----------------------------------------------------------------------------
+-- Paper Trading Account (1) + Positions
+-- ----------------------------------------------------------------------------
+INSERT INTO paper_trading.paper_account (account_id, name, initial_cash, cash_balance, status, created_at) VALUES
+  (UUID(), 'Simulasi IDX', 100000000, 82300000, 'ACTIVE', NOW());
+
+-- ----------------------------------------------------------------------------
+-- Risk Assessment (1)
+-- ----------------------------------------------------------------------------
+SET @port_id = (SELECT portfolio_id FROM portfolio.portfolio WHERE name = 'Growth Portfolio' LIMIT 1);
+INSERT INTO risk.risk_assessment (risk_assessment_id, portfolio_id, assessment_type, var_95, max_drawdown, portfolio_beta, sharpe_ratio, currency, as_of, model_version) VALUES
+  (UUID(), @port_id, 'PORTFOLIO', 4500000, -8.5, 1.15, 1.35, 'IDR', NOW(), 'v1.0');
