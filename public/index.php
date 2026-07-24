@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use Platform\Alert\AlertRoutes;
+use Platform\Alert\AlertService;
 use Platform\Analytics\AnalyticsRoutes;
 use Platform\Analytics\AnalyticsService;
 use Platform\Config\ConfigRoutes;
@@ -49,6 +51,7 @@ $app->registerService('trading', new TradingService());
 $app->registerService('settlement', new SettlementService());
 $app->registerService('data_ingestion', new DataIngestionService());
 $app->registerService('valuation', new ValuationService());
+$app->registerService('alert', new AlertService());
 
 // Create router
 $router = new Router();
@@ -89,7 +92,7 @@ $router->get('/metrics', function (Request $request): Response {
             'environment' => $app->getEnvironment(),
         ],
         'uptime_seconds' => time() - ($_SERVER['REQUEST_TIME'] ?? time()),
-        'services_registered' => 12,
+        'services_registered' => 13,
     ]);
 });
 
@@ -116,6 +119,7 @@ SettlementRoutes::register($router);
 GovernanceRoutes::register($router);
 DataIngestionRoutes::register($router);
 ValuationRoutes::register($router);
+AlertRoutes::register($router);
 
 // Dispatch
 $request = new Request();

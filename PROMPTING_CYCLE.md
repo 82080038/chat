@@ -104,31 +104,29 @@
 ## CURRENT TASK
 
 ```
-TASK ID: CYCLE-004
-TITLE: Alert System — price, signal, risk alerts
-PRIORITY: High
-FASE: 6 (Portfolio Management)
+TASK ID: CYCLE-005
+TITLE: Frontend & UI — Dashboard
+PRIORITY: Medium
+FASE: 11 (Frontend & UI)
 
 DESCRIPTION:
-Buat AlertService di src/Alert/:
-- Schema: tabel alert, alert_rule, alert_notification
-- Price alerts (above/below threshold)
-- Signal alerts (new signal created)
-- Risk alerts (risk event triggered)
-- Endpoints: CRUD alerts, GET notifications, POST acknowledge
-- Gunakan BaseService, ApiException, declare(strict_types=1)
+Buat frontend dengan stack React + TailwindCSS + shadcn/ui:
+- Dashboard: market overview, portfolio summary, recent signals
+- Login page (JWT auth)
+- API client service (fetch wrapper)
+- Vite build setup, output ke public/dashboard/
 
 FILES TO CREATE:
-- src/Alert/AlertServiceInterface.php
-- src/Alert/AlertService.php
-- src/Alert/AlertRoutes.php
-- database/migrations/016_alert_schema.sql
-- tests/Alert/AlertServiceTest.php
+- frontend/ (React project structure)
+- frontend/src/pages/Dashboard.tsx
+- frontend/src/pages/Login.tsx
+- frontend/src/lib/api.ts
+- frontend/package.json, vite.config.ts, tailwind.config.js
 
 VALIDATION:
-- php vendor/bin/phpunit --no-coverage (all pass)
-- php vendor/bin/phpcs --standard=PSR12 src/ tests/ (0 violations on new files)
-- php -l <new_files> (syntax OK)
+- npm run build berhasil
+- Dashboard accessible via http://localhost:8080/dashboard/
+- Login flow works with JWT
 ```
 
 ---
@@ -136,13 +134,6 @@ VALIDATION:
 ## TASK QUEUE (After Current Task)
 
 ```
-CYCLE-005: Frontend & UI — Dashboard
-  - Pilih stack: React + TailwindCSS + shadcn/ui
-  - Dashboard: market overview, portfolio summary, recent signals
-  - Login page (JWT auth)
-  - API client service (axios/fetch wrapper)
-  - FASE: 11
-
 CYCLE-006: Broker API Real Integration
   - Pilih broker (Mirae Asset / BNI Sekuritas / lainnya)
   - Implement BrokerAdapterInterface
@@ -226,7 +217,14 @@ CYCLE-010: Production Deployment
   - 10 tests/21 assertions, 77 tests/151 assertions total
   - Service #12 registered, migrate.sh updated for 011-015
 
-[NEXT] CYCLE-004: Alert System — price, signal, risk alerts
+[2026-07-24] CYCLE-004: Alert System — price, signal, risk alerts
+  - AlertService: createAlert, getAlert, listAlerts, updateAlert, deleteAlert, triggerAlert, listNotifications, acknowledgeNotification, checkPriceAlert
+  - 9 endpoints: CRUD /alerts, POST /alerts/{id}/trigger, POST /alerts/check-price/{instrumentId}, GET /alerts/notifications, POST /alerts/notifications/{id}/acknowledge
+  - Schema: alert.alert + alert.alert_rule + alert.alert_notification (3 tables, 62 total)
+  - 13 tests/20 assertions, 90 tests/171 assertions total
+  - Service #13 registered, migrate.sh updated for 011-016
+
+[NEXT] CYCLE-005: Frontend & UI — Dashboard
   - Status: NOT STARTED
 ```
 

@@ -25,7 +25,7 @@ run_mysql() {
 case "${1:-up}" in
   up)
     echo "=== Running MySQL Migrations (UP) ==="
-    for f in "$MIGRATION_DIR"/00{1..9}_*.sql "$MIGRATION_DIR"/01{0..5}_*.sql; do
+    for f in "$MIGRATION_DIR"/00{1..9}_*.sql "$MIGRATION_DIR"/01{0..6}_*.sql; do
       run_mysql "$f"
     done
     echo "=== MySQL Migrations Complete ==="
