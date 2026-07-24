@@ -11028,7 +11028,9 @@ Implementation Phase (Phase 0: Governance)
 
 ## 476. API Contract — Overview
 
-Spesifikasi REST API lengkap dengan 164 endpoints across 10 bounded contexts.
+Spesifikasi REST API lengkap dengan **138 endpoints** (corrected from 164 for single-owner) across 10 bounded contexts.
+
+> **Catatan Koreksi (Bagian 486-493):** Endpoint tenant, user, role, permission, dan API client telah dihapus. Autentikasi menggunakan Bearer JWT owner-only tanpa X-Tenant-ID.
 
 ### File Locations
 
@@ -11045,7 +11047,7 @@ api/
 ### API Conventions
 
 - **Base URL**: `/api/v1`
-- **Auth**: Bearer JWT + X-API-Key + X-Tenant-ID
+- **Auth**: Bearer JWT (owner-only)
 - **Format**: JSON (request & response)
 - **Pagination**: `page`, `per_page` (default 50, max 200)
 - **Response Envelope**: `{ "data": [...], "meta": { ... } }`
@@ -11060,15 +11062,13 @@ api/
 
 ## 477. API Contract — Endpoint Summary
 
-### Total: 164 Endpoints
+### Total: 138 Endpoints (corrected for single-owner)
+
+> **Koreksi (Bagian 486-493):** Endpoint Tenants (5), Users (7), Roles (8), dan API Clients (5) telah dihapus. Total dikoreksi dari 164 menjadi 138.
 
 | Context | Endpoints |
 |---------|-----------|
 | Identity (Auth) | 8 |
-| Identity (Tenants) | 5 |
-| Identity (Users) | 7 |
-| Identity (Roles) | 8 |
-| Identity (API Clients) | 5 |
 | Market Master | 20 |
 | Fundamental | 10 |
 | Analytics | 18 |
@@ -11077,28 +11077,30 @@ api/
 | Trading | 16 |
 | Settlement | 7 |
 | Governance | 14 |
-| Config | 14 |
+| Config | 13 |
 | Cross-Cutting | 4 |
-| **Total** | **164** |
+| **Total** | **138** |
 
-### HTTP Method Distribution
+### HTTP Method Distribution (corrected)
 
 | Method | Count |
 |--------|-------|
-| GET | 105 |
-| POST | 38 |
-| PUT | 13 |
-| DELETE | 8 |
+| GET | 87 |
+| POST | 30 |
+| PUT | 10 |
+| DELETE | 7 |
+| **Total** | **134** |
 
-### Auth Distribution
+> **Catatan:** 4 endpoint cross-cutting (health, root) menggunakan GET di luar distribusi utama.
+
+### Auth Distribution (corrected)
 
 | Level | Endpoints |
 |-------|-----------|
-| Public | 12 |
-| Bearer | 118 |
-| Admin | 30 |
-| Internal | 1 |
-| Bearer/Self | 3 |
+| Public / First-run | 3 |
+| Bearer (Owner) | 131 |
+| Refresh Token | 1 |
+| Health/Public | 3 |
 
 ---
 
@@ -11161,10 +11163,23 @@ src/
 │   ├── Http/
 │   │   ├── Request.php              # HTTP request with auth context
 │   │   ├── Response.php             # JSON response builder
-│   │   ├── Router.php               # Pattern-based router
+│   │   ├── Router.php               # Pattern-based router + error handling
 │   │   └── RequestParamsTrait.php   # Route param extraction
+│   ├── Cache/
+│   │   ├── CacheStoreInterface.php  # Cache contract
+│   │   └── RedisCacheStore.php      # Redis fail-open cache
+│   ├── Exceptions/
+│   │   └── ApiException.php         # Structured API errors
 │   └── Middleware/
-│       └── AuthMiddleware.php       # JWT bearer + admin guard
+│       └── AuthMiddleware.php       # JWT bearer (owner-only, delegates to IdentityService)
+├── Identity/
+│   ├── IdentityServiceInterface.php # Service contract
+│   ├── IdentityService.php          # Full implementation
+│   └── IdentityRoutes.php           # Route registration
+├── Config/
+│   ├── ConfigServiceInterface.php   # Service contract
+│   ├── ConfigService.php            # Full implementation
+│   └── ConfigRoutes.php             # Route registration
 ├── Governance/
 │   ├── GovernanceServiceInterface.php  # Service contract
 │   ├── GovernanceService.php           # Full implementation
@@ -11172,17 +11187,23 @@ src/
 public/
 └── index.php                           # Application entry point
 tests/
+├── Identity/
+│   └── IdentityServiceTest.php         # Unit tests
+├── Config/
+│   └── ConfigServiceTest.php           # Unit tests
 └── Governance/
     └── GovernanceServiceTest.php       # Unit tests
 ```
 
 ### Core Framework Features
 
-- **Router**: Pattern-based (`/approvals/{id}`), middleware support
-- **Auth**: JWT Bearer token validation, admin guard
-- **Response**: Standardized JSON envelope with pagination meta
+- **Router**: Pattern-based (`/approvals/{id}`), middleware support, centralized exception handling
+- **Auth**: JWT Bearer token validation via IdentityService with DB-backed session revocation
+- **Response**: Standardized JSON envelope with pagination meta, status code exposure for logging
 - **BaseService**: UUID v7 generation, UTC timestamps, pagination helpers
 - **Database**: PDO singleton with prepared statements
+- **Cache**: CacheStoreInterface with Redis fail-open implementation
+- **Exceptions**: ApiException for structured error responses with field errors
 
 ### GovernanceService Implementation
 
@@ -11288,11 +11309,15 @@ Phase 0 (DONE):
   ✓ Core framework (Router, Request, Response, Auth, BaseService)
   ✓ GovernanceService (audit, approval, policy, workflow)
 
-Phase 1 (NEXT):
-  → IdentityService (register, login, JWT, users, roles)
-  → ConfigService (configuration, feature flags, system params)
+Phase 1 (DONE):
+  ✓ IdentityService (one-time owner setup, login, JWT, refresh rotation, logout, lockout, password change, preferences)
+  ✓ ConfigService (configuration versioning, feature flags, system params, storage metadata, access/activity logging, Redis cache)
+  ✓ ApiException + centralized Router error handling
+  ✓ AuthMiddleware delegates to IdentityService with DB-backed session revocation
+  ✓ owner_session table for JWT revocation
+  ✓ PHPUnit test suite (8 tests, 13 assertions)
 
-Phase 2:
+Phase 2 (NEXT):
   → MarketMasterService (instruments, exchanges, listings)
   → FundamentalService (financial statements, news)
 
@@ -11327,17 +11352,19 @@ Data Architecture (Temporal Model, PIT Query, Versioning, Trust Levels)
     ↓
 Canonical Data Contract (15 Items — ALL COMPLETE)
     ↓
-Logical Database Architecture & ERD (10 Contexts, 61 Tables — ALL COMPLETE)
+Logical Database Architecture & ERD (10 Contexts, 56 Tables — ALL COMPLETE)
     ↓
 Physical SQL Schema (MySQL DDL + PostgreSQL DDL + Migration Runner — ALL COMPLETE)
     ↓
-API Contract (164 Endpoints, 10 Contexts — ALL COMPLETE)
+API Contract (138 Endpoints, 10 Contexts — ALL COMPLETE)
     ↓
 Service Boundary Specification (10 Services, Event Flow — ALL COMPLETE)
     ↓
 Implementation Phase 0: Governance Skeleton (Core + GovernanceService — COMPLETE)
     ↓
-Implementation Phase 1: Identity + Config     ← NEXT
+Implementation Phase 1: Identity + Config (IdentityService + ConfigService — COMPLETE)
+    ↓
+Implementation Phase 2: MarketMaster + Fundamental     ← NEXT
 ```
 
 ---
@@ -11346,16 +11373,16 @@ Implementation Phase 1: Identity + Config     ← NEXT
 
 | Layer | Technology | Status |
 |-------|-----------|--------|
-| Blueprint | MASTER_BLUEPRINT.md (485 sections) | ✅ |
-| Database (MySQL) | 61 tables, 10 schemas, 107 indexes | ✅ |
+| Blueprint | MASTER_BLUEPRINT.md (501 sections) | ✅ |
+| Database (MySQL) | 56 tables, 10 schemas | ✅ |
 | Database (PostgreSQL) | 8 hypertables + 2 meta + 1 CAGG | ✅ |
 | Migration Runner | migrate.sh (up/seed/down) | ✅ |
-| API Contract | 164 endpoints, REST/JSON | ✅ |
+| API Contract | 138 endpoints, REST/JSON (owner-only) | ✅ |
 | Service Boundaries | 10 services, interfaces, event flow | ✅ |
-| Core Framework | Router, Auth, Response, BaseService | ✅ |
+| Core Framework | Router, Auth, Response, BaseService, ApiException, Cache | ✅ |
 | GovernanceService | Audit, Approval, Policy, Workflow | ✅ |
-| IdentityService | — | TODO |
-| ConfigService | — | TODO |
+| IdentityService | Setup, Login, JWT, Refresh, Logout, Lockout, Preferences | ✅ |
+| ConfigService | Configuration, Feature Flags, System Params, Storage, Logs | ✅ |
 | MarketMasterService | — | TODO |
 | FundamentalService | — | TODO |
 | AnalyticsService | — | TODO |
@@ -11368,19 +11395,21 @@ Implementation Phase 1: Identity + Config     ← NEXT
 
 ## 485. Final Statement
 
-> **Blueprint lengkap. 485 bagian. ~11.200 baris.**
+> **Blueprint lengkap. 501 bagian. ~11.800 baris.**
 >
-> **Dari Constitution → TDR → Domain Model → Data Contract → Logical ERD → Physical DDL → API Contract → Service Boundary → Implementation Phase 0.**
+> **Dari Constitution → TDR → Domain Model → Data Contract → Logical ERD → Physical DDL → API Contract → Service Boundary → Implementation Phase 0 → Architecture Correction → Implementation Phase 1.**
 >
-> **Core framework + GovernanceService sudah built. 9 services lagi siap dibangun mengikuti pattern yang sama.**
+> **Core framework + GovernanceService + IdentityService + ConfigService sudah built. 7 services lagi siap dibangun mengikuti pattern yang sama.**
 >
-> **Next: IdentityService + ConfigService → MarketMasterService → ... → full platform.**
+> **Next: Implementation Phase 2 — MarketMasterService + FundamentalService.**
 
 ---
 
 > Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
 > Semua informasi telah disimpan tanpa pengurangan.
-> Update: 24 Juli 2026 — Bagian 1-485 + Bagian 486-493 (Architecture Correction: Single-Owner Personal Application)
+> Update: 24 Juli 2026 — Bagian 1-485 + Bagian 486-493 (Architecture Correction) + Bagian 494-501 (Implementation Phase 1)
+>
+> **Bagian 476-485 telah diperbarui agar konsisten dengan koreksi single-owner dan status Phase 1.**
 
 ---
 
