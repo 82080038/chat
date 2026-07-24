@@ -432,12 +432,28 @@ Events Consumed:
 
 Internal Interface:
   TradingServiceInterface
+    - listBrokers(array $filters, int $page, int $perPage): array
+    - createBroker(array $data): array
+    - getBroker(string $id): ?array
+    - updateBroker(string $id, array $data): array
+    - listDecisions(array $filters, int $page, int $perPage): array
     - createDecision(array $data): array
+    - getDecision(string $id): ?array
     - approveDecision(string $id): array
-    - createOrderIntent(string $decisionId, array $data): array
-    - submitOrder(string $intentId, array $data): array
-    - cancelOrder(string $orderId): array
-    - getOrderById(string $id): ?array
+    - rejectDecision(string $id, string $reason): array
+    - overrideDecision(string $id, string $reason): array
+    - listOrderIntents(array $filters, int $page, int $perPage): array
+    - createOrderIntent(array $data): array
+    - getOrderIntent(string $id): ?array
+    - approveOrderIntent(string $id): array
+    - rejectOrderIntent(string $id, string $reason): array
+    - listOrders(array $filters, int $page, int $perPage): array
+    - submitOrder(array $data): array
+    - getOrder(string $id): ?array
+    - cancelOrder(string $id, string $reason): array
+    - getOrderExecutions(string $orderId): array
+    - listExecutions(array $filters, int $page, int $perPage): array
+    - getExecution(string $id): ?array
     - recordExecution(array $data): array
 ```
 
@@ -469,9 +485,15 @@ Events Consumed:
 
 Internal Interface:
   SettlementServiceInterface
+    - listSettlements(array $filters, int $page, int $perPage): array
+    - getSettlement(string $id): ?array
     - getSettlementByExecution(string $executionId): ?array
     - getPendingSettlements(string $portfolioId): array
     - processSettlement(string $settlementId): array
+    - createSettlement(array $data): array
+    - listReconciliations(array $filters, int $page, int $perPage): array
+    - getReconciliation(string $id): ?array
+    - listPortfolioReconciliations(string $portfolioId): array
     - createReconciliation(array $data): array
     - resolveReconciliation(string $id, string $resolution): array
 ```

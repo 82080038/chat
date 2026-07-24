@@ -25,6 +25,10 @@ use Platform\Portfolio\PortfolioRoutes;
 use Platform\Portfolio\PortfolioService;
 use Platform\Risk\RiskRoutes;
 use Platform\Risk\RiskService;
+use Platform\Settlement\SettlementRoutes;
+use Platform\Settlement\SettlementService;
+use Platform\Trading\TradingRoutes;
+use Platform\Trading\TradingService;
 
 $app = Application::getInstance();
 
@@ -37,6 +41,8 @@ $app->registerService('fundamental', new FundamentalService());
 $app->registerService('analytics', new AnalyticsService());
 $app->registerService('risk', new RiskService());
 $app->registerService('portfolio', new PortfolioService());
+$app->registerService('trading', new TradingService());
+$app->registerService('settlement', new SettlementService());
 
 // Create router
 $router = new Router();
@@ -86,6 +92,8 @@ FundamentalRoutes::register($router);
 AnalyticsRoutes::register($router);
 RiskRoutes::register($router);
 PortfolioRoutes::register($router);
+TradingRoutes::register($router);
+SettlementRoutes::register($router);
 GovernanceRoutes::register($router);
 
 // Dispatch
