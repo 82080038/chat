@@ -14,3 +14,8 @@ Thumbs.db
 coverage/
 .phpunit.cache/
 .phpunit.result.cache
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/vite.config.d.ts
+frontend/vite.config.js

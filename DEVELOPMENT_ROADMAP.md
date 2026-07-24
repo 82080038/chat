@@ -49,7 +49,7 @@ MySQL tables: 62 (schema designed, migrations not yet applied)
 
 ### Next Priorities (from unchecked items below)
 
-1. **Frontend & UI** — dashboard, stock detail, screening
+1. **Broker API integration** — real broker adapter
 2. **Production deployment** — Kubernetes, monitoring, security audit
 
 ---
@@ -224,14 +224,14 @@ MySQL tables: 62 (schema designed, migrations not yet applied)
   - [ ] Signal validation
 
 ## FASE 11 — FRONTEND & UI (Minggu 25-28)
-- [ ] Dashboard (market overview, portfolio summary)
+- [x] Dashboard (market overview, portfolio summary)
 - [ ] Stock detail page (chart, fundamental, technical, valuation)
 - [ ] Screening & scanning interface
 - [ ] Decision & signal panel
-- [ ] Portfolio management view
+- [x] Portfolio management view (portfolio cards in dashboard)
 - [ ] Order entry & OMS interface
 - [ ] Risk monitor
-- [ ] Alert & notification center
+- [x] Alert & notification center (alert list in dashboard)
 - [ ] Settings & configuration
 
 ## FASE 12 — DEPLOYMENT & TESTING (Minggu 29-30)

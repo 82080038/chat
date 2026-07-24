@@ -104,29 +104,27 @@
 ## CURRENT TASK
 
 ```
-TASK ID: CYCLE-005
-TITLE: Frontend & UI — Dashboard
+TASK ID: CYCLE-006
+TITLE: Broker API Real Integration
 PRIORITY: Medium
-FASE: 11 (Frontend & UI)
+FASE: 7 (Execution & OMS)
 
 DESCRIPTION:
-Buat frontend dengan stack React + TailwindCSS + shadcn/ui:
-- Dashboard: market overview, portfolio summary, recent signals
-- Login page (JWT auth)
-- API client service (fetch wrapper)
-- Vite build setup, output ke public/dashboard/
+Pilih broker (Mirae Asset / BNI Sekuritas / lainnya):
+- Implement BrokerAdapterInterface
+- API authentication, account balance, portfolio sync
+- Real-time price feed
+- Order placement via broker API
 
 FILES TO CREATE:
-- frontend/ (React project structure)
-- frontend/src/pages/Dashboard.tsx
-- frontend/src/pages/Login.tsx
-- frontend/src/lib/api.ts
-- frontend/package.json, vite.config.ts, tailwind.config.js
+- src/Trading/BrokerAdapterInterface.php
+- src/Trading/Adapters/MiraeAssetAdapter.php (or selected broker)
+- database/migrations/017_broker_adapter_schema.sql
+- tests/Trading/BrokerAdapterTest.php
 
 VALIDATION:
-- npm run build berhasil
-- Dashboard accessible via http://localhost:8080/dashboard/
-- Login flow works with JWT
+- php vendor/bin/phpunit --no-coverage (all pass)
+- php -l <new_files> (syntax OK)
 ```
 
 ---
@@ -134,13 +132,6 @@ VALIDATION:
 ## TASK QUEUE (After Current Task)
 
 ```
-CYCLE-006: Broker API Real Integration
-  - Pilih broker (Mirae Asset / BNI Sekuritas / lainnya)
-  - Implement BrokerAdapterInterface
-  - API authentication, account balance, portfolio sync
-  - Real-time price feed
-  - FASE: 7
-
 CYCLE-007: Backtesting Framework
   - Historical data replay engine
   - Strategy testing interface
@@ -224,7 +215,16 @@ CYCLE-010: Production Deployment
   - 13 tests/20 assertions, 90 tests/171 assertions total
   - Service #13 registered, migrate.sh updated for 011-016
 
-[NEXT] CYCLE-005: Frontend & UI — Dashboard
+[2026-07-24] CYCLE-005: Frontend & UI — Dashboard
+  - React 18 + Vite 5 + TailwindCSS 3 + shadcn/ui style components
+  - Login page: JWT auth via POST /auth/login, token stored in localStorage
+  - Dashboard: stats cards (health, portfolios, signals, alerts), recent signals, active alerts, portfolios grid
+  - API client: fetch wrapper with JWT bearer auth, typed responses
+  - ProtectedRoute: auth guard with redirect to /login
+  - Build output: public/dashboard/ (200KB JS gzipped 64KB)
+  - Dark theme, responsive layout, Lucide icons
+
+[NEXT] CYCLE-006: Broker API Real Integration
   - Status: NOT STARTED
 ```
 
