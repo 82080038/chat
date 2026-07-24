@@ -1,6 +1,59 @@
 # DEVELOPMENT ROADMAP
 # Global-to-Indonesia Capital Market Intelligence & Trading Platform
 
+---
+
+## IMPLEMENTATION STATUS — Synced with MASTER_BLUEPRINT section 536
+
+**Last updated:** 24 Juli 2026 (commit 0267c90)
+
+### Backend Services: 10/10 Complete
+
+| # | Service | Phase | Methods | Endpoints | Status |
+|---|---------|-------|---------|-----------|--------|
+| 1 | IdentityService | 1 | 14 | 8 | ✅ Done |
+| 2 | ConfigService | 1 | 18 | 16 | ✅ Done |
+| 3 | MarketMasterService | 2 | 28 | 28 | ✅ Done |
+| 4 | FundamentalService | 2 | 17 | 17 | ✅ Done |
+| 5 | AnalyticsService | 3 | 31 | 31 | ✅ Done |
+| 6 | RiskService | 4 | 13 | 13 | ✅ Done |
+| 7 | PortfolioService | 4 | 16 | 16 | ✅ Done |
+| 8 | TradingService | 5 | 20 | 20 | ✅ Done |
+| 9 | SettlementService | 5 | 7 | 7 | ✅ Done |
+| 10 | GovernanceService | 1+fix | 20 | 18 | ✅ Done |
+
+### Cross-Service Wiring: ✅ Done
+- ServiceHub: pre-trade risk check, auto-settlement, audit logging
+- Health endpoints: /health, /health/ready, /health/live, /metrics
+
+### Infrastructure: 4 cross-cutting endpoints
+
+| Endpoint | Auth | Status |
+|----------|------|--------|
+| GET /health | Public | ✅ |
+| GET /health/ready | Public | ✅ |
+| GET /health/live | Public | ✅ |
+| GET /metrics | Internal | ✅ |
+
+### Test Results
+
+```
+PHPUnit: 60 tests, 118 assertions — ALL PASS
+PSR-12: 0 violations
+Total endpoints: 178 (174 service + 4 cross-cutting)
+MySQL tables: 56 (schema designed, migrations not yet applied)
+```
+
+### Next Priorities (from unchecked items below)
+
+1. **Docker & docker-compose** — containerize MySQL, Redis, PHP
+2. **Data ingestion feeders** — IDX/BEI market data, OHLCV
+3. **Valuation models** — DCF, relative valuation, fair value calculation
+4. **Alert system** — price, signal, risk alerts
+5. **Frontend & UI** — dashboard, stock detail, screening
+
+---
+
 ## FASE 1 — FOUNDATION (Minggu 1-2)
 - [x] Setup project structure (modular monolith)
 - [x] Database schema design (MySQL + TimescaleDB)
@@ -191,18 +244,21 @@
 
 ## PRIORITAS PENGEMBANGAN
 
-### MVP (Minimum Viable Product) — Fase 1-3
+### MVP (Minimum Viable Product) — Fase 1-3 ✅ Backend Done
 Fokus pada: data ingestion + analysis engines
 Target: User dapat melihat data saham, chart, fundamental, technical
+**Status:** Backend services complete (Identity, Config, MarketMaster, Fundamental, Analytics). Storage layer ready. Data feeders dan calculation engine belum ada.
 
-### V2 — Fase 4-5
+### V2 — Fase 4-5 ✅ Backend Done
 Fokus pada: intelligence + decision + risk
 Target: User mendapat rekomendasi dan risk assessment
+**Status:** RiskService, PortfolioService, TradingService, SettlementService complete. Cross-service wiring (pre-trade risk, auto-settlement, audit) done.
 
-### V3 — Fase 6-7
+### V3 — Fase 6-7 ✅ Backend Done
 Fokus pada: portfolio + execution
 Target: User dapat manage portfolio dan transaksi via broker API
+**Status:** Portfolio management, OMS, settlement tracking complete. Real broker API integration belum ada.
 
-### V4 — Fase 8-12
+### V4 — Fase 8-12 ⏳ Partial
 Fokus pada: audit, AI, backtesting, UI polish, deployment
-Target: Production-ready platform
+**Status:** Audit engine & compliance checks done (GovernanceService). AI engine, backtesting, paper trading, frontend, Docker deployment belum dimulai.

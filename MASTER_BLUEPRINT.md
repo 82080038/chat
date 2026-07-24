@@ -12565,6 +12565,103 @@ Test breakdown:
 
 > Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
 > Semua informasi telah disimpan tanpa pengurangan.
-> Update: 24 Juli 2026 — Bagian 1-529 + Bagian 530-533 (Governance Fix & Integration Tests)
+> Update: 24 Juli 2026 — Bagian 1-533 + Bagian 534-536 (Cross-Service Wiring & Health Endpoints)
 >
-> TOTAL: 533 BAGIAN
+> TOTAL: 536 BAGIAN
+
+---
+
+# BAGIAN LANJUTAN 16 — CROSS-SERVICE WIRING & INFRASTRUCTURE
+
+---
+
+## 534. ServiceHub — Cross-Service Communication
+
+### Problem
+Services bersifat modular (bounded contexts) tapi perlu komunikasi untuk:
+- Pre-trade risk check sebelum submit order
+- Auto-create settlement setelah execution recorded
+- Audit logging dari TradingService ke GovernanceService
+
+### Solution: ServiceHub
+Class `Platform\Core\ServiceHub` (singleton) yang mengakses service registry via `Application::getInstance()->getService()`.
+
+### Wired Operations
+1. **Pre-trade risk check** — `TradingService::submitOrder()` memanggil `ServiceHub::checkPreTradeRisk()` yang memanggil `RiskService::checkLimits()`. Jika violation, reject dengan `RISK_LIMIT_VIOLATION` (422).
+2. **Auto-settlement** — `TradingService::recordExecution()` memanggil `ServiceHub::autoCreateSettlement()` yang memanggil `SettlementService::createSettlement()` dengan T+2 settlement date.
+3. **Audit logging** — 5 operations log ke `governance.audit_log`:
+   - `DECISION_APPROVED`, `DECISION_REJECTED`
+   - `ORDER_SUBMITTED`, `ORDER_CANCELLED`
+   - `EXECUTION_RECORDED`
+
+### Design Principle
+ServiceHub bersifat **fail-safe**: jika service target tidak terdaftar, operasi skip (return null/true) tanpa throw. Ini menjaga modularitas — service tidak crash jika dependency belum registered.
+
+---
+
+## 535. Health & Metrics Endpoints
+
+### Endpoints (4 cross-cutting)
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/health` | Service health check | Public |
+| GET | `/health/ready` | DB readiness check | Public |
+| GET | `/health/live` | Liveness check | Public |
+| GET | `/metrics` | Service metrics (info, uptime, services count) | Internal |
+
+### Implementation
+Semua 4 endpoint terdaftar di `public/index.php` sebelum context routes. Tidak memerlukan Bearer auth.
+
+---
+
+## 536. Final Implementation Status (Post-Cross-Service Wiring)
+
+### Services: 10/10 Complete
+| # | Service | Phase | Methods | Endpoints |
+|---|---------|-------|---------|-----------|
+| 1 | IdentityService | 1 | 14 | 8 |
+| 2 | ConfigService | 1 | 18 | 16 |
+| 3 | MarketMasterService | 2 | 28 | 28 |
+| 4 | FundamentalService | 2 | 17 | 17 |
+| 5 | AnalyticsService | 3 | 31 | 31 |
+| 6 | RiskService | 4 | 13 | 13 |
+| 7 | PortfolioService | 4 | 16 | 16 |
+| 8 | TradingService | 5 | 20 | 20 |
+| 9 | SettlementService | 5 | 7 | 7 |
+| 10 | GovernanceService | 1+fix | 20 | 18 |
+
+### Cross-Service Wiring
+- ServiceHub: pre-trade risk check, auto-settlement, audit logging
+- Health endpoints: /health, /health/ready, /health/live, /metrics
+
+### Test Results
+```
+PHPUnit: 60 tests, 118 assertions — ALL PASS
+PSR-12: 0 violations
+```
+
+### Remaining Work (Unchecked in Roadmap)
+- Docker & docker-compose setup
+- Python calculation engine
+- Data ingestion feeders (IDX/BEI, OHLCV, global markets)
+- Data quality engine
+- Valuation models (DCF, relative valuation, fair value)
+- Market microstructure analysis
+- Market factor matrix
+- Alert system
+- Broker API real integration
+- Order modify
+- Capital/credit thresholds, duplicate/erroneous order detection
+- AI engine (NLP, pattern recognition, predictive models)
+- Backtesting framework
+- Paper trading
+- Frontend & UI
+- Docker/K8s deployment, load testing, security audit
+
+---
+
+> Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
+> Semua informasi telah disimpan tanpa pengurangan.
+> Update: 24 Juli 2026 — Bagian 1-533 + Bagian 534-536 (Cross-Service Wiring & Health Endpoints)
+>
+> TOTAL: 536 BAGIAN
