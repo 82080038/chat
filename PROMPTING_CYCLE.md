@@ -104,26 +104,26 @@
 ## CURRENT TASK
 
 ```
-TASK ID: CYCLE-007
-TITLE: Backtesting Framework
+TASK ID: CYCLE-008
+TITLE: Paper Trading
 PRIORITY: Medium
 FASE: 10 (Backtesting & Paper Trading)
 
 DESCRIPTION:
-Buat BacktestService di src/Backtesting/:
-- Historical data replay engine
-- Strategy testing interface
-- Performance metrics (Sharpe, Sortino, Max DD)
-- Schema: backtest_run, backtest_trade, backtest_metrics
-- Endpoints: POST /backtests, GET /backtests/{id}, GET /backtests/{id}/metrics
+Buat PaperTradingService di src/PaperTrading/:
+- Simulated execution engine (no real broker)
+- Virtual portfolio with fake cash/positions
+- Signal validation workflow
+- Schema: paper_portfolio, paper_order, paper_position
+- Endpoints: POST /paper/orders, GET /paper/positions, GET /paper/summary
 - Gunakan BaseService, ApiException, declare(strict_types=1)
 
 FILES TO CREATE:
-- src/Backtesting/BacktestServiceInterface.php
-- src/Backtesting/BacktestService.php
-- src/Backtesting/BacktestRoutes.php
-- database/migrations/018_backtest_schema.sql
-- tests/Backtesting/BacktestServiceTest.php
+- src/PaperTrading/PaperTradingServiceInterface.php
+- src/PaperTrading/PaperTradingService.php
+- src/PaperTrading/PaperTradingRoutes.php
+- database/migrations/019_paper_trading_schema.sql
+- tests/PaperTrading/PaperTradingServiceTest.php
 
 VALIDATION:
 - php vendor/bin/phpunit --no-coverage (all pass)
@@ -135,12 +135,6 @@ VALIDATION:
 ## TASK QUEUE (After Current Task)
 
 ```
-CYCLE-008: Paper Trading
-  - Simulated execution engine
-  - Virtual portfolio
-  - Signal validation workflow
-  - FASE: 10
-
 CYCLE-009: AI Engine — NLP, pattern recognition
   - News NLP pipeline (sentiment, entity, event)
   - Pattern recognition (chart patterns)
@@ -230,7 +224,16 @@ CYCLE-010: Production Deployment
   - 14 tests/22 assertions, 104 tests/193 assertions total
   - Service #14 registered, migrate.sh updated for 011-017
 
-[NEXT] CYCLE-007: Backtesting Framework
+[2026-07-24] CYCLE-007: Backtesting Framework
+  - BacktestService: createRun, getRun, listRuns, executeRun, getRunTrades, getRunMetrics, calculateMetrics
+  - 6 endpoints: POST /backtests, GET /backtests, GET /backtests/{id}, POST /backtests/{id}/execute, GET /backtests/{id}/trades, GET /backtests/{id}/metrics
+  - Replay engine: buy/sell on price data, PnL per trade
+  - Performance metrics: Sharpe ratio, Sortino ratio, Max drawdown, Win rate, Profit factor, Total/annualized return
+  - Schema: backtesting.backtest_run + backtest_trade + backtest_metrics (3 tables, 67 total)
+  - 13 tests/28 assertions, 117 tests/221 assertions total
+  - Service #15 registered, migrate.sh updated for 011-018
+
+[NEXT] CYCLE-008: Paper Trading
   - Status: NOT STARTED
 ```
 

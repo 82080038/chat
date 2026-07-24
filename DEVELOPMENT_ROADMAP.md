@@ -7,7 +7,7 @@
 
 **Last updated:** 24 Juli 2026 (CYCLE-001 Docker setup)
 
-### Backend Services: 14/14 Complete
+### Backend Services: 15/15 Complete
 
 | # | Service | Phase | Methods | Endpoints | Status |
 |---|---------|-------|---------|-----------|--------|
@@ -25,6 +25,7 @@
 | 12 | ValuationService | 3 | 7 | 7 | ✅ Done |
 | 13 | AlertService | 6 | 9 | 9 | ✅ Done |
 | 14 | BrokerAdapterService | 7 | 8 | 8 | ✅ Done |
+| 15 | BacktestService | 10 | 7 | 6 | ✅ Done |
 
 ### Cross-Service Wiring: ✅ Done
 - ServiceHub: pre-trade risk check, auto-settlement, audit logging
@@ -42,17 +43,16 @@
 ### Test Results
 
 ```
-PHPUnit: 104 tests, 193 assertions — ALL PASS
+PHPUnit: 117 tests, 221 assertions — ALL PASS
 PSR-12: 0 violations on new files (1 pre-existing in ConfigServiceTest)
-Total endpoints: 207 (203 service + 4 cross-cutting)
-MySQL tables: 64 (schema designed, migrations not yet applied)
+Total endpoints: 213 (209 service + 4 cross-cutting)
+MySQL tables: 67 (schema designed, migrations not yet applied)
 ```
 
 ### Next Priorities (from unchecked items below)
 
-1. **Backtesting framework** — historical data replay, strategy testing
-2. **Paper trading** — simulated execution
-3. **Production deployment** — Kubernetes, monitoring, security audit
+1. **Paper trading** — simulated execution
+2. **Production deployment** — Kubernetes, monitoring, security audit
 
 ---
 
@@ -220,10 +220,10 @@ MySQL tables: 64 (schema designed, migrations not yet applied)
 - [ ] Smart alerts
 
 ## FASE 10 — BACKTESTING & PAPER TRADING (Minggu 23-24)
-- [ ] Backtesting framework
-  - [ ] Historical data replay
-  - [ ] Strategy testing
-  - [ ] Performance metrics (Sharpe, Sortino, Max DD)
+- [x] Backtesting framework (BacktestService)
+  - [x] Historical data replay engine (replayStrategy with buy/sell on price bars)
+  - [x] Strategy testing interface (createRun + executeRun with price data input)
+  - [x] Performance metrics (Sharpe, Sortino, Max DD, win rate, profit factor)
 - [ ] Paper trading
   - [ ] Simulated execution
   - [ ] Virtual portfolio
