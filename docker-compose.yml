@@ -1,0 +1,93 @@
+services:
+  # ──────────────────────────────────────────────
+  # MySQL 8.x
+  # ──────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: platform-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret
+      MYSQL_DATABASE: platform
+      MYSQL_USER: platform
+      MYSQL_PASSWORD: platform_secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_secret"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ──────────────────────────────────────────────
+  # Redis 7.x
+  # ──────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: platform-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ──────────────────────────────────────────────
+  # PHP 8.3 Apache (application)
+  # ──────────────────────────────────────────────
+  app:
+    build: .
+    container_name: platform-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+      - ./docker/php-init.sh:/usr/local/bin/php-init.sh:ro
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: platform
+      DB_USER: platform
+      DB_PASS: platform_secret
+      DB_CHARSET: utf8mb4
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+      APP_ENV: development
+      APP_DEBUG: "true"
+    entrypoint: ["/usr/local/bin/php-init.sh"]
+
+  # ──────────────────────────────────────────────
+  # PhpMyAdmin (optional)
+  # ──────────────────────────────────────────────
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: platform-phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: "3306"
+      PMA_USER: root
+      PMA_PASSWORD: root_secret
+
+volumes:
+  db_data:
+  redis_data:

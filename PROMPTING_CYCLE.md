@@ -104,40 +104,30 @@
 ## CURRENT TASK
 
 ```
-TASK ID: CYCLE-001
-TITLE: Docker & docker-compose setup
+TASK ID: CYCLE-002
+TITLE: Data Ingestion — IDX/BEI market data feeder
 PRIORITY: High
-FASE: 1 (Foundation)
+FASE: 2 (Data Ingestion)
 
 DESCRIPTION:
-Buat docker-compose.yml dengan services:
-- MySQL 8.x (port 3306, persistent volume, schema auto-load dari database/migrations/)
-- Redis 7.x (port 6379, persistent volume)
-- PHP 8.3 Apache (port 8080, document root /opt/lampp/htdocs/chat/public)
-- PhpMyAdmin (port 8081, optional)
-
-Buat Dockerfile untuk PHP image dengan extensions:
-- pdo_mysql, redis, mbstring, xml, curl, zip
-
-Buat .dockerignore untuk exclude vendor/, .git/, .phpunit.cache/
-
-Setelah docker-compose siap, test:
-- docker-compose up -d
-- MySQL connection dari PHP container
-- Redis connection dari PHP container
-- Access http://localhost:8080/ (API info endpoint)
+Buat DataIngestionService di src/DataIngestion/:
+- Feeder untuk OHLCV daily dari API eksternal (simulasi/mock untuk MVP)
+- Schema: tabel ohlcv_daily di MySQL untuk MVP
+- Endpoints: POST /ingestion/ohlcv, GET /ingestion/status
+- Interface → Service → Routes → Tests pattern
+- Gunakan BaseService, ApiException, declare(strict_types=1)
 
 FILES TO CREATE:
-- docker-compose.yml
-- Dockerfile
-- .dockerignore
-- docker/php-init.sh (script untuk auto-run migrations)
+- src/DataIngestion/DataIngestionServiceInterface.php
+- src/DataIngestion/DataIngestionService.php
+- src/DataIngestion/DataIngestionRoutes.php
+- database/migrations/014_ohlcv_daily_schema.sql
+- tests/DataIngestion/DataIngestionServiceTest.php
 
 VALIDATION:
-- docker-compose up -d berhasil
-- http://localhost:8080/health returns 200
-- http://localhost:8080/health/ready returns 200 (DB connected)
-- PHPUnit tests masih pass
+- php vendor/bin/phpunit --no-coverage (all pass)
+- php vendor/bin/phpcs --standard=PSR12 src/ tests/ (0 violations)
+- php -l <new_files> (syntax OK)
 ```
 
 ---
@@ -145,13 +135,6 @@ VALIDATION:
 ## TASK QUEUE (After Current Task)
 
 ```
-CYCLE-002: Data Ingestion — IDX/BEI market data feeder
-  - Buat DataIngestionService di src/DataIngestion/
-  - Feeder untuk OHLCV daily dari API eksternal (simulasi/mock untuk MVP)
-  - Schema: tabel ohlcv_daily di TimescaleDB (atau MySQL untuk MVP)
-  - Endpoints: POST /ingestion/ohlcv, GET /ingestion/status
-  - FASE: 2
-
 CYCLE-003: Valuation Engine — DCF, relative valuation, fair value
   - Tambah methods ke FundamentalService atau buat ValuationService baru
   - DCF model (NPV dari projected FCF)
@@ -237,7 +220,14 @@ CYCLE-010: Production Deployment
   - /metrics endpoint, roadmap updated
   - Blueprint 536 sections, 60 tests/118 assertions
 
-[NEXT] CYCLE-001: Docker & docker-compose setup
+[2026-07-24] CYCLE-001: Docker & docker-compose setup
+  - docker-compose.yml: MySQL 8.x, Redis 7.x, PHP 8.3 Apache, PhpMyAdmin
+  - Dockerfile: PHP 8.3 + pdo_mysql, redis, mbstring, xml, curl, zip, opcache
+  - .dockerignore, .env.docker, docker/php-init.sh (auto-migrate on startup)
+  - 60 tests/118 assertions still pass, PSR-12 clean
+  - Docker not installed on dev machine — compose file ready, untested live
+
+[NEXT] CYCLE-002: Data Ingestion — IDX/BEI market data feeder
   - Status: NOT STARTED
 ```
 

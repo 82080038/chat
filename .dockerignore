@@ -1,0 +1,17 @@
+vendor/
+.git/
+.phpunit.cache/
+.phpunit.result.cache
+node_modules/
+storage/logs/*
+storage/cache/*
+storage/uploads/*
+coverage/
+.env
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -5,7 +5,7 @@
 
 ## IMPLEMENTATION STATUS — Synced with MASTER_BLUEPRINT section 536
 
-**Last updated:** 24 Juli 2026 (commit 0267c90)
+**Last updated:** 24 Juli 2026 (CYCLE-001 Docker setup)
 
 ### Backend Services: 10/10 Complete
 
@@ -46,18 +46,18 @@ MySQL tables: 56 (schema designed, migrations not yet applied)
 
 ### Next Priorities (from unchecked items below)
 
-1. **Docker & docker-compose** — containerize MySQL, Redis, PHP
-2. **Data ingestion feeders** — IDX/BEI market data, OHLCV
-3. **Valuation models** — DCF, relative valuation, fair value calculation
-4. **Alert system** — price, signal, risk alerts
-5. **Frontend & UI** — dashboard, stock detail, screening
+1. **Data ingestion feeders** — IDX/BEI market data, OHLCV
+2. **Valuation models** — DCF, relative valuation, fair value calculation
+3. **Alert system** — price, signal, risk alerts
+4. **Frontend & UI** — dashboard, stock detail, screening
+5. **Production deployment** — Kubernetes, monitoring, security audit
 
 ---
 
 ## FASE 1 — FOUNDATION (Minggu 1-2)
 - [x] Setup project structure (modular monolith)
 - [x] Database schema design (MySQL + TimescaleDB)
-- [ ] Docker & docker-compose setup
+- [x] Docker & docker-compose setup
 - [x] Redis cache setup (fail-open in ConfigService)
 - [x] REST API skeleton (PHP Native, PSR-12)
 - [ ] Python calculation engine skeleton
