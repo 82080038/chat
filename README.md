@@ -81,6 +81,14 @@ php -S localhost:8000 -t public/
 │   │   ├── AnalyticsServiceInterface.php
 │   │   ├── AnalyticsService.php
 │   │   └── AnalyticsRoutes.php
+│   ├── Risk/
+│   │   ├── RiskServiceInterface.php
+│   │   ├── RiskService.php
+│   │   └── RiskRoutes.php
+│   ├── Portfolio/
+│   │   ├── PortfolioServiceInterface.php
+│   │   ├── PortfolioService.php
+│   │   └── PortfolioRoutes.php
 │   └── Governance/
 │       ├── GovernanceServiceInterface.php
 │       ├── GovernanceService.php
@@ -107,6 +115,8 @@ php -S localhost:8000 -t public/
 │   ├── MarketMaster/
 │   ├── Fundamental/
 │   ├── Analytics/
+│   ├── Risk/
+│   ├── Portfolio/
 │   └── Governance/
 ├── MASTER_BLUEPRINT.md         # Complete blueprint (501 sections)
 └── DEVELOPMENT_ROADMAP.md
@@ -134,3 +144,4 @@ See `MASTER_BLUEPRINT.md` for the complete system blueprint including:
 - Phase 1 implementation: IdentityService + ConfigService
 - Phase 2 implementation: MarketMasterService + FundamentalService
 - Phase 3 implementation: AnalyticsService
+- Phase 4 implementation: RiskService + PortfolioService

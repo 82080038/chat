@@ -21,6 +21,10 @@ use Platform\Identity\IdentityRoutes;
 use Platform\Identity\IdentityService;
 use Platform\MarketMaster\MarketMasterRoutes;
 use Platform\MarketMaster\MarketMasterService;
+use Platform\Portfolio\PortfolioRoutes;
+use Platform\Portfolio\PortfolioService;
+use Platform\Risk\RiskRoutes;
+use Platform\Risk\RiskService;
 
 $app = Application::getInstance();
 
@@ -31,6 +35,8 @@ $app->registerService('governance', new GovernanceService());
 $app->registerService('market_master', new MarketMasterService());
 $app->registerService('fundamental', new FundamentalService());
 $app->registerService('analytics', new AnalyticsService());
+$app->registerService('risk', new RiskService());
+$app->registerService('portfolio', new PortfolioService());
 
 // Create router
 $router = new Router();
@@ -78,6 +84,8 @@ ConfigRoutes::register($router);
 MarketMasterRoutes::register($router);
 FundamentalRoutes::register($router);
 AnalyticsRoutes::register($router);
+RiskRoutes::register($router);
+PortfolioRoutes::register($router);
 GovernanceRoutes::register($router);
 
 // Dispatch

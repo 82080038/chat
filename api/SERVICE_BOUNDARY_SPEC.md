@@ -321,13 +321,27 @@ Events Consumed:
 
 Internal Interface:
   PortfolioServiceInterface
-    - getPortfolioById(string $id): ?array
+    - listPortfolios(array $filters, int $page, int $perPage): array
+    - createPortfolio(array $data): array
+    - getPortfolio(string $id): ?array
+    - updatePortfolio(string $id, array $data): array
+    - archivePortfolio(string $id): array
     - getPortfolioSummary(string $id): array
-    - getPositions(string $portfolioId): array
+    - getPositions(string $portfolioId, int $page, int $perPage): array
     - getPosition(string $portfolioId, string $instrumentId): ?array
-    - getCashBalance(string $portfolioId, string $currency): ?array
+    - getPositionHistory(string $portfolioId, string $instrumentId, string $from, string $to): array
+    - openPosition(array $data): array
+    - updatePosition(string $positionId, array $data): array
+    - closePosition(string $positionId, array $data): array
+    - getCashBalances(string $portfolioId): array
+    - getCashTransactions(string $portfolioId, int $page, int $perPage): array
     - recordCashTransaction(string $portfolioId, array $data): array
     - getPortfolioTargets(string $portfolioId): array
+    - setPortfolioTarget(string $portfolioId, array $data): array
+    - updatePortfolioTarget(string $targetId, array $data): array
+    - removePortfolioTarget(string $targetId): array
+    - getPortfolioAccounts(string $portfolioId): array
+    - linkPortfolioAccount(string $portfolioId, array $data): array
 ```
 
 ### 3.6 RiskService
@@ -357,11 +371,25 @@ Events Consumed:
 
 Internal Interface:
   RiskServiceInterface
+    - listRiskProfiles(array $filters, int $page, int $perPage): array
+    - createRiskProfile(array $data): array
     - getRiskProfile(string $id): ?array
-    - checkLimits(string $portfolioId, array $proposedTrade): array
+    - updateRiskProfile(string $id, array $data): array
+    - listRiskLimits(string $portfolioId): array
+    - setRiskLimit(string $portfolioId, array $data): array
+    - updateRiskLimit(string $limitId, array $data): array
+    - removeRiskLimit(string $limitId): array
+    - listRiskAssessments(string $portfolioId, int $page, int $perPage): array
+    - triggerAssessment(string $portfolioId, array $data): array
+    - getRiskAssessment(string $id): ?array
     - getLatestAssessment(string $portfolioId): ?array
-    - triggerAssessment(string $portfolioId): array
+    - listRiskEvents(array $filters, int $page, int $perPage): array
+    - listPortfolioRiskEvents(string $portfolioId): array
+    - getRiskEvent(string $id): ?array
     - getActiveRiskEvents(string $portfolioId): array
+    - acknowledgeRiskEvent(string $id): array
+    - resolveRiskEvent(string $id, string $resolution): array
+    - checkLimits(string $portfolioId, array $proposedTrade): array
 ```
 
 ### 3.7 TradingService

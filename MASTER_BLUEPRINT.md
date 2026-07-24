@@ -12172,3 +12172,149 @@ Test breakdown:
 > Update: 24 Juli 2026 — Bagian 1-508 + Bagian 509-515 (Implementation Phase 3: AnalyticsService)
 >
 > TOTAL: 515 BAGIAN
+
+---
+
+# BAGIAN LANJUTAN 13 — IMPLEMENTATION PHASE 4
+
+---
+
+## 516. Phase 4 Implementation Scope
+
+Phase 4 mengimplementasikan dua service:
+
+1. **RiskService** — Risk profile, risk limits, risk assessments (VaR, ES, Sharpe, etc.), risk events with acknowledge/resolve lifecycle
+2. **PortfolioService** — Portfolio CRUD, positions (open/update/close), position history, cash balances & transactions, portfolio targets, portfolio accounts
+
+Pattern sama dengan Phase 1-3: Interface → Service → Routes → Tests, extends BaseService, ApiException, Bearer JWT.
+
+---
+
+## 517. RiskService — Implemented Capabilities
+
+### Risk Profiles
+- Create with tolerance enum (CONSERVATIVE/MODERATE/AGGRESSIVE/SPECULATIVE)
+- Configurable limits: max_single_position, max_sector_exposure, max_portfolio_beta, max_var_pct, max_drawdown_pct, min_liquidity_days
+- Update with partial field updates
+
+### Risk Limits
+- Set per-portfolio limits with type, value, unit, time horizon, confidence level
+- Lifecycle: ACTIVE → BREACHED → SUSPENDED → REMOVED
+- `checkLimits()` utility — validates proposed trade against active limits
+
+### Risk Assessments
+- Trigger assessment with VaR (95/99), expected shortfall, beta, Sharpe, Sortino, max drawdown, volatility, concentration index
+- `getLatestAssessment()` — latest by portfolio
+
+### Risk Events
+- Event types: LIMIT_BREACH, WARNING, RECOVERY, OVERRIDE
+- Severity: LOW, MEDIUM, HIGH, CRITICAL
+- Lifecycle: OPEN → ACKNOWLEDGED → RESOLVED / ESCALATED
+- `acknowledgeRiskEvent()` and `resolveRiskEvent()` with resolution text
+- `getActiveRiskEvents()` — filter OPEN + ACKNOWLEDGED
+
+### Endpoints: 13
+- Risk Profiles: 4 (GET list, POST, GET by id, PUT)
+- Risk Limits: 4 (GET portfolio limits, POST, PUT, DELETE)
+- Risk Assessments: 3 (GET portfolio list, POST trigger, GET by id)
+- Risk Events: 5 (GET list, GET portfolio list, GET by id, POST acknowledge, POST resolve)
+
+---
+
+## 518. PortfolioService — Implemented Capabilities
+
+### Portfolios
+- CRUD with type (LIVE/PAPER/BACKTEST/SHADOW) and status (ACTIVE/FROZEN/CLOSED/ARCHIVED)
+- `archivePortfolio()` — soft archive (status → ARCHIVED)
+- `getPortfolioSummary()` — aggregated NAV, P&L, cash balance, position count
+
+### Positions
+- Open/update/close lifecycle
+- Position type (LONG/SHORT), status (OPEN/CLOSED/PARTIALLY_CLOSED)
+- `getPositionHistory()` — position snapshots over date range
+- Close sets realized_pnl, zeroes quantity and unrealized_pnl
+
+### Cash
+- Multi-currency cash balances (ledger, settled, available, reserved)
+- Cash transactions: DEPOSIT, WITHDRAWAL, DIVIDEND, INTEREST, FEE, TAX, SETTLEMENT, COMMISSION
+- Direction: CREDIT/DEBIT, status: PENDING/SETTLED/CANCELLED
+
+### Targets
+- Portfolio targets with type (WEIGHT/QUANTITY/RANGE), min/max weight
+- Effective date range (effective_from / effective_until)
+- CRUD: set, update, remove
+
+### Accounts
+- Link broker accounts to portfolio
+- Account type: CASH/MARGIN/SHORT, status: ACTIVE/CLOSED/SUSPENDED
+
+### Endpoints: 16
+- Portfolios: 6 (GET list, POST, GET by id, PUT, DELETE archive, GET summary)
+- Positions: 2 (GET list, GET history)
+- Cash: 3 (GET balances, GET transactions, POST transaction)
+- Targets: 4 (GET list, POST, PUT, DELETE)
+- Accounts: 2 (GET list, POST link)
+
+---
+
+## 519. Phase 4 Schema — No Changes
+
+Physical DDL `006_risk_schema.sql` (4 tables) dan `007_portfolio_schema.sql` (7 tables) tidak mengalami perubahan. Total MySQL tables tetap 56.
+
+---
+
+## 520. Phase 4 Validation Results
+
+```
+PHPUnit: 39 tests, 70 assertions — ALL PASS
+PSR-12: 0 violations (src/Portfolio/, src/Risk/)
+PHP syntax: clean (all 8 new files)
+```
+
+Test breakdown:
+- Identity: 3 tests, 5 assertions
+- Config: 3 tests, 5 assertions
+- MarketMaster: 5 tests, 5 assertions
+- Fundamental: 6 tests, 6 assertions
+- Analytics: 6 tests, 6 assertions
+- Risk: 4 tests, 4 assertions
+- Portfolio: 5 tests, 5 assertions
+- Governance: 4 tests, 16 assertions (unchanged)
+- Router: 1 test, 7 assertions (unchanged)
+- Core: 2 tests, 7 assertions (unchanged)
+
+---
+
+## 521. Phase 4 Updated Endpoint Count
+
+| Context | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Total |
+|---------|---------|---------|---------|---------|-------|
+| Identity | 8 | — | — | — | 8 |
+| Config | 16 | — | — | — | 16 |
+| Market Master | — | 28 | — | — | 28 |
+| Fundamental | — | 17 | — | — | 17 |
+| Analytics | — | — | 31 | — | 31 |
+| Risk | — | — | — | 13 | 13 |
+| Portfolio | — | — | — | 16 | 16 |
+| Governance | — | — | — | — | (existing) |
+| **Total** | **24** | **45** | **31** | **29** | **129+** |
+
+---
+
+## 522. Implementation Phase 4 — Final Statement
+
+> **RiskService complete: risk profile management with tolerance levels, risk limit enforcement with checkLimits utility, risk assessments with VaR/ES/Sharpe/Sortino metrics, and risk event lifecycle with acknowledge/resolve workflow.**
+>
+> **PortfolioService complete: portfolio CRUD with archiving, position open/update/close lifecycle, multi-currency cash balances and transactions, portfolio targets with weight/quantity/range types, and broker account linking.**
+>
+> **MySQL physical model unchanged at 56 tables.**
+>
+> **Next: Implementation Phase 5 — TradingService + SettlementService.**
+
+---
+
+> Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
+> Semua informasi telah disimpan tanpa pengurangan.
+> Update: 24 Juli 2026 — Bagian 1-515 + Bagian 516-522 (Implementation Phase 4: RiskService + PortfolioService)
+>
+> TOTAL: 522 BAGIAN
