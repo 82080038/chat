@@ -22,5 +22,11 @@ if (str_starts_with($uri, '/dashboard')) {
     return true;
 }
 
+// Serve static files at root (favicon, robots.txt, etc.)
+$rootFile = __DIR__ . $uri;
+if ($uri !== '/' && file_exists($rootFile) && !is_dir($rootFile)) {
+    return false; // Let PHP serve the static file
+}
+
 // Everything else → API entry point
 require __DIR__ . '/index.php';
