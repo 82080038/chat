@@ -17,7 +17,7 @@ final class Application
     {
         $rootPath = dirname(__DIR__, 2);
         if (file_exists($rootPath . '/.env')) {
-            $dotenv = Dotenv::createImmutable($rootPath);
+            $dotenv = Dotenv::createMutable($rootPath);
             $dotenv->load();
         }
         $this->config = $_ENV;

@@ -54,6 +54,18 @@ async function request<T>(
 
 export const api = {
   get: <T>(path: string) => request<T>(path),
+  getPaginated: async <T>(path: string): Promise<{ data: T[]; meta?: PaginationMeta }> => {
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers: await buildHeaders(),
+    });
+    const text = await res.text();
+    const json = text ? JSON.parse(text) : null;
+    if (!res.ok) {
+      const err = json?.error || {};
+      throw new ApiError(res.status, err.code || "UNKNOWN", err.message || `HTTP ${res.status}`, err.field_errors);
+    }
+    return { data: json?.data ?? [], meta: json?.meta };
+  },
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, {
       method: "POST",
@@ -64,8 +76,23 @@ export const api = {
       method: "PUT",
       body: body ? JSON.stringify(body) : undefined,
     }),
+  patch: <T>(path: string, body?: unknown) =>
+    request<T>(path, {
+      method: "PATCH",
+      body: body ? JSON.stringify(body) : undefined,
+    }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
+
+async function buildHeaders(): Promise<Record<string, string>> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
 
 export type ApiResponse<T> = {
   data: T;
@@ -116,4 +143,604 @@ export type Alert = {
   threshold: number;
   is_active: number;
   description: string | null;
+};
+
+export type Instrument = {
+  instrument_id: string;
+  symbol: string;
+  name: string;
+  asset_class: string;
+  sector: string | null;
+  industry: string | null;
+  currency: string;
+  status: string;
+  created_at: string;
+};
+
+export type Listing = {
+  listing_id: string;
+  instrument_id: string;
+  exchange_id: string;
+  ticker: string;
+  isin: string;
+  status: string;
+  listed_at: string;
+};
+
+export type Exchange = {
+  exchange_id: string;
+  code: string;
+  name: string;
+  country: string;
+  currency: string;
+  timezone: string;
+  status: string;
+};
+
+export type Recommendation = {
+  recommendation_id: string;
+  instrument_id: string;
+  action: string;
+  confidence: number;
+  target_price: string | null;
+  reasoning: string | null;
+  created_at: string;
+};
+
+export type Forecast = {
+  forecast_id: string;
+  instrument_id: string;
+  model_name: string;
+  direction: string;
+  expected_return: string;
+  horizon: string;
+  created_at: string;
+};
+
+export type Score = {
+  score_id: string;
+  instrument_id: string;
+  score_type: string;
+  value: number;
+  created_at: string;
+};
+
+export type Order = {
+  order_id: string;
+  portfolio_id: string;
+  instrument_id: string;
+  side: string;
+  order_type: string;
+  quantity: string;
+  price: string | null;
+  status: string;
+  created_at: string;
+};
+
+export type OrderIntent = {
+  intent_id: string;
+  portfolio_id: string;
+  instrument_id: string;
+  side: string;
+  order_type: string;
+  quantity: string;
+  status: string;
+  created_at: string;
+};
+
+export type Decision = {
+  decision_id: string;
+  portfolio_id: string;
+  instrument_id: string;
+  action: string;
+  status: string;
+  policy_result: string;
+  created_at: string;
+};
+
+export type RiskProfile = {
+  risk_profile_id: string;
+  name: string;
+  risk_tolerance: string;
+  status: string;
+  created_at: string;
+};
+
+export type RiskAssessment = {
+  risk_assessment_id: string;
+  portfolio_id: string;
+  var_95: string | null;
+  max_drawdown: string | null;
+  concentration_index: string | null;
+  created_at: string;
+};
+
+export type RiskEvent = {
+  risk_event_id: string;
+  portfolio_id: string | null;
+  event_type: string;
+  severity: string;
+  status: string;
+  description: string | null;
+  created_at: string;
+};
+
+export type NewsItem = {
+  news_id: string;
+  title: string;
+  source: string | null;
+  sentiment: string | null;
+  published_at: string;
+  summary: string | null;
+};
+
+export type FinancialStatement = {
+  statement_id: string;
+  issuer_id: string;
+  period_type: string;
+  fiscal_year: string;
+  fiscal_period: string;
+  status: string;
+  created_at: string;
+};
+
+export type ConfigEntry = {
+  config_id: string;
+  key: string;
+  value: string;
+  category: string;
+  status: string;
+  created_at: string;
+};
+
+export type Broker = {
+  broker_id: string;
+  name: string;
+  code: string;
+  status: string;
+  created_at: string;
+};
+
+export type PaginationMeta = {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+};
+
+export type PaginatedResponse<T> = {
+  data: T[];
+  meta?: PaginationMeta;
+};
+
+// ─── Technical Indicators ──────────────────────────────────────────────
+
+export type IndicatorResult = {
+  values?: number[];
+  latest?: number | null;
+  signal?: string;
+  trend?: string;
+  trend_strength?: string;
+};
+
+export type MACDResult = {
+  macd_line: number[];
+  signal_line: number[];
+  histogram: number[];
+  latest_macd: number | null;
+  latest_signal: number | null;
+  trend: string;
+};
+
+export type BollingerResult = {
+  upper: number[];
+  middle: number[];
+  lower: number[];
+  latest_upper: number | null;
+  latest_middle: number | null;
+  latest_lower: number | null;
+  bandwidth: number | null;
+};
+
+export type AllIndicators = {
+  sma_20: IndicatorResult;
+  sma_50: IndicatorResult;
+  ema_12: IndicatorResult;
+  ema_26: IndicatorResult;
+  rsi_14: IndicatorResult;
+  macd: MACDResult;
+  bollinger_bands: BollingerResult;
+  atr_14: IndicatorResult;
+  adx_14: IndicatorResult;
+  support_resistance: {
+    support: number[];
+    resistance: number[];
+    current_price: number | null;
+  };
+  trend: {
+    trend: string;
+    short_sma: number | null;
+    long_sma: number | null;
+  };
+};
+
+// ─── Market Regime ─────────────────────────────────────────────────────
+
+export type MarketRegime = {
+  regime: string;
+  sub_regime: string;
+  trend: string;
+  volatility: string;
+  volatility_pct: number | null;
+  risk_appetite: string;
+  confidence: number;
+  details: {
+    adx: number | null;
+    adx_strength: string;
+    rsi: number | null;
+    rsi_signal: string;
+    atr: number | null;
+    bollinger_bandwidth: number | null;
+    short_sma: number | null;
+    long_sma: number | null;
+  };
+};
+
+// ─── Screening ─────────────────────────────────────────────────────────
+
+export type ScreeningResult = {
+  instrument_id: string;
+  symbol: string | null;
+  name: string | null;
+  asset_class: string;
+  screening_score: number;
+  matched_criteria: string[];
+  not_matched_criteria: string[];
+};
+
+export type ScreeningResponse = {
+  results: ScreeningResult[];
+  total: number;
+  criteria: Record<string, unknown>;
+};
+
+// ─── Composite Score ───────────────────────────────────────────────────
+
+export type ScoreDimension = {
+  score: number | null;
+  grade: string;
+  weight: number;
+};
+
+export type CompositeScore = {
+  composite_score: number;
+  recommendation: string;
+  confidence: string;
+  available_dimensions: number;
+  dimensions: Record<string, ScoreDimension>;
+};
+
+// ─── Stop Loss ─────────────────────────────────────────────────────────
+
+export type StopLossResult = {
+  stop_loss_price: number;
+  method: string;
+  entry_price: number;
+  side: string;
+  risk_amount: number;
+  risk_percent: number;
+};
+
+// ─── Correlation Matrix ────────────────────────────────────────────────
+
+export type CorrelationMatrix = {
+  instruments: string[];
+  matrix: number[][];
+};
+
+// ─── Data Quality ──────────────────────────────────────────────────────
+
+export type DataQualityCheck = {
+  check: string;
+  status: string;
+  detail: string;
+};
+
+export type DataQualityResult = {
+  instrument_id: string;
+  total_records?: number;
+  date_range?: { from: string; to: string };
+  checks: DataQualityCheck[];
+  total_issues: number;
+  passed: boolean;
+};
+
+// ─── Market Microstructure ─────────────────────────────────────────────
+
+export type BidAskSpread = {
+  spread: number | null;
+  spread_pct: number | null;
+  avg_spread: number | null;
+  avg_spread_pct: number | null;
+  classification: string;
+};
+
+export type OrderBookLevel = {
+  level: number;
+  bid_price: number;
+  bid_volume: number;
+  ask_price: number;
+  ask_volume: number;
+};
+
+export type OrderBookDepth = {
+  levels: OrderBookLevel[];
+  total_bid_volume: number;
+  total_ask_volume: number;
+  imbalance: number;
+  imbalance_pct: number;
+};
+
+export type MarketImpact = {
+  market_impact_pct: number;
+  expected_price_movement: number;
+  kyle_lambda: number;
+  classification: string;
+};
+
+export type LiquidityScore = {
+  liquidity_score: number;
+  grade: string;
+  avg_daily_volume: number;
+  avg_daily_value: number;
+  volume_consistency: number;
+  price_stability: number;
+};
+
+// ─── Market Factor Matrix ──────────────────────────────────────────────
+
+export type GlobalFactor = {
+  factor: string;
+  value: number;
+  period: string;
+  weight: number;
+  direction: string;
+  as_of: string;
+};
+
+export type GlobalFactorsResult = {
+  factors: GlobalFactor[];
+  summary: string;
+};
+
+export type RupiahPressureScore = {
+  score: number;
+  grade: string;
+  components: Record<string, { value: number; score: number; impact: string }>;
+  interpretation: string;
+};
+
+export type FlowConfirmationScore = {
+  score: number;
+  grade: string;
+  volume_trend: string;
+  smart_money_flow: string;
+  interpretation: string;
+};
+
+// ─── Support/Resistance & Trend ────────────────────────────────────────
+
+export type SupportResistance = {
+  support: number[];
+  resistance: number[];
+  current_price: number | null;
+};
+
+export type TrendResult = {
+  trend: string;
+  short_sma: number | null;
+  long_sma: number | null;
+};
+
+// ─── AI Analysis ───────────────────────────────────────────────────────
+
+export type AIAnalysis = {
+  analysis_id: string;
+  analysis_type: string;
+  instrument_id?: string;
+  sentiment_score?: number | null;
+  sentiment_label?: string | null;
+  entities?: string | null;
+  events?: string | null;
+  pattern_type?: string | null;
+  pattern_confidence?: number | null;
+  anomaly_score?: number | null;
+  anomaly_type?: string | null;
+  summary?: string | null;
+  created_at: string;
+};
+
+// ─── Compliance & Risk Types ───────────────────────────────────────────
+
+export type ComplianceWarning = {
+  type: string;
+  severity: string;
+  message: string;
+  [key: string]: unknown;
+};
+
+export type DuplicateOrderResult = {
+  check: string;
+  passed: boolean;
+  is_duplicate: boolean;
+  duplicate_count: number;
+  duplicates: unknown[];
+  message: string;
+};
+
+export type ErroneousOrderResult = {
+  check: string;
+  passed: boolean;
+  warning_count: number;
+  warnings: ComplianceWarning[];
+  market_price: number;
+  order_value: number;
+  message: string;
+};
+
+export type CapitalThresholdResult = {
+  check: string;
+  passed: boolean;
+  violation_count: number;
+  violations: ComplianceWarning[];
+  cash_balance: number;
+  position_value: number;
+  total_capital: number;
+  order_value: number;
+  cash_after_order: number;
+  message: string;
+};
+
+export type FeeBreakdown = {
+  broker_commission: number;
+  commission_rate: number;
+  vat_on_commission: number;
+  vat_rate: number;
+  bei_fee: number;
+  bei_fee_rate: number;
+  kpei_fee: number;
+  kpei_fee_rate: number;
+  sales_tax: number;
+  total_fees: number;
+};
+
+export type MinimumCapitalResult = {
+  check: string;
+  portfolio_id: string;
+  instrument_id: string;
+  ticker: string;
+  side: string;
+  quantity_requested: number;
+  quantity_effective: number;
+  lots: number;
+  lot_size: number;
+  lot_warning: string | null;
+  price: number;
+  effective_price: number;
+  cost_per_share: number;
+  order_value: number;
+  fee_breakdown: FeeBreakdown;
+  minimum_capital: number;
+  cash_balance: number;
+  shortfall: number;
+  sufficient: boolean;
+  limit_checks: { limit_type: string; limit_value: number; cash_after_order: number; passed: boolean }[];
+  limit_violations: ComplianceWarning[];
+  violation_count: number;
+  passed: boolean;
+  message: string;
+};
+
+export type LiquidityRiskResult = {
+  portfolio_id: string;
+  total_positions: number;
+  total_value: number;
+  high_risk_positions: number;
+  avg_liquidation_days: number;
+  portfolio_liquidity_risk_score: number;
+  portfolio_risk_level: string;
+  positions: {
+    instrument_id: string;
+    quantity: number;
+    position_value: number;
+    avg_daily_volume: number;
+    max_daily_sellable: number;
+    liquidation_days: number;
+    liquidity_risk_score: number;
+    risk_level: string;
+  }[];
+};
+
+export type GapRiskResult = {
+  portfolio_id: string;
+  total_positions: number;
+  total_value: number;
+  total_gap_risk_value: number;
+  portfolio_gap_risk_pct: number;
+  portfolio_risk_level: string;
+  positions: {
+    instrument_id: string;
+    quantity: number;
+    position_value: number;
+    atr_14: number;
+    gap_risk_pct: number;
+    gap_risk_value: number;
+    risk_level: string;
+  }[];
+};
+
+// ─── API Helper Methods for New Endpoints ──────────────────────────────
+
+export const AnalyticsAPI = {
+  // Market Microstructure
+  getBidAskSpread: (instrumentId: string) =>
+    api.get<BidAskSpread>(`/instruments/${instrumentId}/bid-ask-spread`),
+
+  getOrderBook: (instrumentId: string, levels = 5) =>
+    api.get<OrderBookDepth>(`/instruments/${instrumentId}/order-book?levels=${levels}`),
+
+  getMarketImpact: (instrumentId: string, orderValue: number, side = 'BUY') =>
+    api.post<MarketImpact>(`/instruments/${instrumentId}/market-impact`, { order_value: orderValue, side }),
+
+  getLiquidityScore: (instrumentId: string) =>
+    api.get<LiquidityScore>(`/instruments/${instrumentId}/liquidity-score`),
+
+  // Market Factor Matrix
+  getGlobalFactors: () =>
+    api.get<GlobalFactorsResult>(`/factors/global-indonesia`),
+
+  getRupiahPressure: () =>
+    api.get<RupiahPressureScore>(`/factors/rupiah-pressure`),
+
+  getFlowConfirmation: () =>
+    api.get<FlowConfirmationScore>(`/factors/flow-confirmation`),
+
+  // Support/Resistance & Trend
+  getSupportResistance: (instrumentId: string) =>
+    api.get<SupportResistance>(`/instruments/${instrumentId}/support-resistance`),
+
+  getTrend: (instrumentId: string) =>
+    api.get<TrendResult>(`/instruments/${instrumentId}/trend`),
+
+  // Stop Loss
+  calculateStopLoss: (instrumentId: string, entryPrice: number, side = 'BUY') =>
+    api.post<StopLossResult>(`/instruments/${instrumentId}/stop-loss`, { entry_price: entryPrice, side }),
+
+  // Data Quality
+  getDataQuality: (instrumentId: string) =>
+    api.get<DataQualityResult>(`/ingestion/quality/${instrumentId}`),
+
+  // Correlation Matrix
+  getCorrelationMatrix: (portfolioId: string) =>
+    api.get<CorrelationMatrix>(`/portfolios/${portfolioId}/correlation-matrix`),
+
+  // Liquidity Risk & Gap Risk
+  getLiquidityRisk: (portfolioId: string) =>
+    api.get<LiquidityRiskResult>(`/portfolios/${portfolioId}/liquidity-risk`),
+
+  getGapRisk: (portfolioId: string) =>
+    api.get<GapRiskResult>(`/portfolios/${portfolioId}/gap-risk`),
+
+  // Compliance Checks
+  checkDuplicateOrder: (portfolioId: string, instrumentId: string, side: string, quantity: number, price: number) =>
+    api.post<DuplicateOrderResult>('/compliance/duplicate-order', { portfolio_id: portfolioId, instrument_id: instrumentId, side, quantity, price }),
+
+  checkErroneousOrder: (portfolioId: string, instrumentId: string, side: string, quantity: number, price: number) =>
+    api.post<ErroneousOrderResult>('/compliance/erroneous-order', { portfolio_id: portfolioId, instrument_id: instrumentId, side, quantity, price }),
+
+  checkCapitalThreshold: (portfolioId: string, orderValue: number) =>
+    api.post<CapitalThresholdResult>('/compliance/capital-threshold', { portfolio_id: portfolioId, order_value: orderValue }),
+
+  calculateMinimumCapital: (portfolioId: string, instrumentId: string, quantity: number, price: number, side = 'BUY') =>
+    api.post<MinimumCapitalResult>('/compliance/minimum-capital', { portfolio_id: portfolioId, instrument_id: instrumentId, quantity, price, side }),
 };

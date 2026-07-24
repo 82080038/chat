@@ -6,10 +6,13 @@ namespace Platform\Fundamental;
 
 use PDO;
 use Platform\Core\BaseService;
+use Platform\Core\Data\PointInTimeQuery;
 use Platform\Core\Exceptions\ApiException;
 
 final class FundamentalService extends BaseService implements FundamentalServiceInterface
 {
+    use PointInTimeQuery;
+
     // ─── Financial Statements ────────────────────────────────────────────
 
     public function listFinancialStatements(array $filters, int $page, int $perPage): array
@@ -34,6 +37,10 @@ final class FundamentalService extends BaseService implements FundamentalService
         if (isset($filters['status'])) {
             $where[] = 'status = :status';
             $params[':status'] = $filters['status'];
+        }
+        if (isset($filters['as_of'])) {
+            $where[] = 'available_time <= :as_of';
+            $params[':as_of'] = $filters['as_of'] . ' 23:59:59';
         }
         $clause = $where === [] ? '' : 'WHERE ' . implode(' AND ', $where);
         $total = $this->countRows('fundamental.financial_statement', $clause, $params);

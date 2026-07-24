@@ -12,6 +12,8 @@ use Platform\Trading\BrokerAdapterRoutes;
 use Platform\Trading\BrokerAdapterService;
 use Platform\AIEngine\AIEngineRoutes;
 use Platform\AIEngine\AIEngineService;
+use Platform\Microstructure\MicrostructureRoutes;
+use Platform\Microstructure\MicrostructureService;
 use Platform\Backtesting\BacktestRoutes;
 use Platform\Backtesting\BacktestService;
 use Platform\PaperTrading\PaperTradingRoutes;
@@ -64,6 +66,7 @@ $app->registerService('broker_adapter', new BrokerAdapterService());
 $app->registerService('backtest', new BacktestService());
 $app->registerService('paper_trading', new PaperTradingService());
 $app->registerService('ai_engine', new AIEngineService());
+$app->registerService('microstructure', new MicrostructureService());
 
 // Create router
 $router = new Router();
@@ -104,7 +107,7 @@ $router->get('/metrics', function (Request $request) use ($app): Response {
             'environment' => $app->getEnvironment(),
         ],
         'uptime_seconds' => time() - ($_SERVER['REQUEST_TIME'] ?? time()),
-        'services_registered' => 17,
+        'services_registered' => 18,
     ]);
 });
 
@@ -136,6 +139,7 @@ BrokerAdapterRoutes::register($router);
 BacktestRoutes::register($router);
 PaperTradingRoutes::register($router);
 AIEngineRoutes::register($router);
+MicrostructureRoutes::register($router);
 
 // Dispatch
 $request = new Request();

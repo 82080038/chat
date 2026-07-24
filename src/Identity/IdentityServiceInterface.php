@@ -25,4 +25,20 @@ interface IdentityServiceInterface
     public function getPreferences(string $ownerId): array;
 
     public function updatePreferences(string $ownerId, array $data): array;
+
+    /**
+     * Emergency kill switch — locks owner account and revokes all sessions.
+     * Halts all trading and sensitive operations.
+     */
+    public function activateKillSwitch(string $reason): array;
+
+    /**
+     * Deactivate kill switch — unlocks owner account.
+     */
+    public function deactivateKillSwitch(): array;
+
+    /**
+     * Check if kill switch is active (owner is locked).
+     */
+    public function isKillSwitchActive(): bool;
 }

@@ -45,10 +45,24 @@ case "${1:-up}" in
       if [[ "$(basename "$f")" == "012_seed_data.sql" ]]; then
         continue
       fi
+      if [[ "$(basename "$f")" == "015_seed_sample_data.sql" ]]; then
+        continue
+      fi
+      if [[ "$(basename "$f")" == "016_seed_full_simulation_data.sql" ]]; then
+        continue
+      fi
+      if [[ "$(basename "$f")" == "017_seed_month_simulation.sql" ]]; then
+        continue
+      fi
       if [[ "$(basename "$f")" == "021_seed_simulation_data.sql" ]]; then
         continue
       fi
-      run_mysql "$f"
+      # First migration creates the database, run without specifying DB name
+      if [[ "$(basename "$f")" == "001_create_database_and_schemas.sql" ]]; then
+        run_mysql_raw "$f"
+      else
+        run_mysql "$f"
+      fi
     done
     echo "=== MySQL Migrations Complete ==="
     echo ""
@@ -89,6 +103,15 @@ case "${1:-up}" in
         continue
       fi
       if [[ "$(basename "$f")" == "012_seed_data.sql" ]]; then
+        continue
+      fi
+      if [[ "$(basename "$f")" == "015_seed_sample_data.sql" ]]; then
+        continue
+      fi
+      if [[ "$(basename "$f")" == "016_seed_full_simulation_data.sql" ]]; then
+        continue
+      fi
+      if [[ "$(basename "$f")" == "017_seed_month_simulation.sql" ]]; then
         continue
       fi
       if [[ "$(basename "$f")" == "021_seed_simulation_data.sql" ]]; then

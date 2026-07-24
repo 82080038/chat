@@ -510,4 +510,518 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
         $stmt->execute($params);
         return (int) $stmt->fetchColumn();
     }
+
+    // ─── Compliance Checks ──────────────────────────────────────────────
+
+    /**
+     * Check for duplicate orders within a time window.
+     * Detects if an identical order (same instrument, side, quantity, price) was placed recently.
+     */
+    public function checkDuplicateOrder(
+        string $portfolioId,
+        string $instrumentId,
+        string $side,
+        float $quantity,
+        float $price
+    ): array {
+        $stmt = $this->db->prepare(
+            'SELECT o.order_id, o.order_ref, o.created_at, o.quantity, o.limit_price, o.side
+             FROM trading.`order` o
+             JOIN trading.order_intent oi ON o.order_intent_id = oi.order_intent_id
+             WHERE oi.portfolio_id = :pid
+               AND o.instrument_id = :iid
+               AND o.side = :side
+               AND o.quantity = :qty
+               AND (o.limit_price = :price OR (o.limit_price IS NULL AND :price2 = 0))
+               AND o.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+             ORDER BY o.created_at DESC
+             LIMIT 5'
+        );
+        $stmt->execute([
+            ':pid' => $portfolioId,
+            ':iid' => $instrumentId,
+            ':side' => $side,
+            ':qty' => $quantity,
+            ':price' => $price,
+            ':price2' => $price,
+        ]);
+        $duplicates = $stmt->fetchAll();
+
+        $isDuplicate = count($duplicates) > 0;
+
+        return [
+            'check' => 'DUPLICATE_ORDER',
+            'passed' => !$isDuplicate,
+            'is_duplicate' => $isDuplicate,
+            'duplicate_count' => count($duplicates),
+            'duplicates' => $duplicates,
+            'message' => $isDuplicate
+                ? 'Potential duplicate order detected: identical order placed within last 5 minutes'
+                : 'No duplicate orders detected',
+        ];
+    }
+
+    /**
+     * Check for erroneous orders — detects fat-finger errors.
+     * Flags orders where price deviates significantly from market or quantity is abnormally large.
+     */
+    public function checkErroneousOrder(
+        string $portfolioId,
+        string $instrumentId,
+        string $side,
+        float $quantity,
+        float $price
+    ): array {
+        $warnings = [];
+
+        // Get latest market price
+        $priceStmt = $this->db->prepare(
+            'SELECT close FROM data_ingestion.ohlcv_daily
+             WHERE instrument_id = :iid ORDER BY trade_date DESC LIMIT 1'
+        );
+        $priceStmt->execute([':iid' => $instrumentId]);
+        $marketPrice = (float) ($priceStmt->fetchColumn() ?: 0);
+
+        // Price deviation check: flag if order price is >5% away from market
+        if ($marketPrice > 0) {
+            $deviationPct = abs(($price - $marketPrice) / $marketPrice) * 100;
+            if ($deviationPct > 10) {
+                $warnings[] = [
+                    'type' => 'PRICE_DEVIATION',
+                    'severity' => 'HIGH',
+                    'message' => sprintf(
+                        'Order price %.2f deviates %.2f%% from market price %.2f',
+                        $price,
+                        $deviationPct,
+                        $marketPrice
+                    ),
+                    'market_price' => $marketPrice,
+                    'order_price' => $price,
+                    'deviation_pct' => round($deviationPct, 2),
+                ];
+            } elseif ($deviationPct > 5) {
+                $warnings[] = [
+                    'type' => 'PRICE_DEVIATION',
+                    'severity' => 'MEDIUM',
+                    'message' => sprintf(
+                        'Order price %.2f deviates %.2f%% from market price %.2f',
+                        $price,
+                        $deviationPct,
+                        $marketPrice
+                    ),
+                    'market_price' => $marketPrice,
+                    'order_price' => $price,
+                    'deviation_pct' => round($deviationPct, 2),
+                ];
+            }
+        }
+
+        // Quantity check: flag if order quantity is >10x average daily volume
+        $volStmt = $this->db->prepare(
+            'SELECT AVG(volume) AS avg_vol FROM data_ingestion.ohlcv_daily
+             WHERE instrument_id = :iid AND trade_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)'
+        );
+        $volStmt->execute([':iid' => $instrumentId]);
+        $avgVol = (float) ($volStmt->fetchColumn() ?: 0);
+
+        if ($avgVol > 0 && $quantity > $avgVol * 10) {
+            $warnings[] = [
+                'type' => 'ABNORMAL_QUANTITY',
+                'severity' => 'HIGH',
+                'message' => sprintf(
+                    'Order quantity %.0f exceeds 10x average daily volume %.0f',
+                    $quantity,
+                    $avgVol
+                ),
+                'order_quantity' => $quantity,
+                'avg_daily_volume' => round($avgVol, 0),
+                'ratio' => round($quantity / $avgVol, 1),
+            ];
+        }
+
+        // Order value check: flag if order value exceeds 1 billion IDR
+        $orderValue = $quantity * $price;
+        if ($orderValue > 1000000000) {
+            $warnings[] = [
+                'type' => 'LARGE_ORDER_VALUE',
+                'severity' => 'MEDIUM',
+                'message' => sprintf(
+                    'Order value Rp %.0f exceeds 1 billion IDR threshold',
+                    $orderValue
+                ),
+                'order_value' => round($orderValue, 2),
+            ];
+        }
+
+        $passed = count($warnings) === 0;
+
+        return [
+            'check' => 'ERRONEOUS_ORDER',
+            'passed' => $passed,
+            'warning_count' => count($warnings),
+            'warnings' => $warnings,
+            'market_price' => $marketPrice,
+            'order_value' => round($orderValue, 2),
+            'message' => $passed
+                ? 'No erroneous order patterns detected'
+                : sprintf('%d erroneous order warning(s) detected', count($warnings)),
+        ];
+    }
+
+    /**
+     * Check capital/credit threshold for a portfolio.
+     * Ensures the portfolio has sufficient capital for the proposed order.
+     */
+    public function checkCapitalThreshold(string $portfolioId, float $orderValue): array
+    {
+        // Get portfolio cash balance
+        $cashStmt = $this->db->prepare(
+            'SELECT cb.available_balance FROM portfolio.cash_balance cb
+             WHERE cb.portfolio_id = :pid ORDER BY as_of DESC LIMIT 1'
+        );
+        $cashStmt->execute([':pid' => $portfolioId]);
+        $cashBalance = (float) ($cashStmt->fetchColumn() ?: 0);
+
+        // Get total position value
+        $posStmt = $this->db->prepare(
+            'SELECT SUM(p.quantity * p.average_cost) AS total_value
+             FROM portfolio.position p
+             WHERE p.portfolio_id = :pid AND p.status = "OPEN"'
+        );
+        $posStmt->execute([':pid' => $portfolioId]);
+        $positionValue = (float) ($posStmt->fetchColumn() ?: 0);
+
+        $totalCapital = $cashBalance + $positionValue;
+
+        // Get risk limits for capital thresholds
+        $limitStmt = $this->db->prepare(
+            'SELECT limit_type, limit_value, limit_unit FROM risk.risk_limit
+             WHERE portfolio_id = :pid AND status = "ACTIVE"
+               AND limit_type IN ("MAX_CAPITAL_DEPLOYMENT", "MAX_ORDER_VALUE", "MIN_CASH_RESERVE")'
+        );
+        $limitStmt->execute([':pid' => $portfolioId]);
+        $limits = $limitStmt->fetchAll();
+
+        $violations = [];
+        $cashAfterOrder = $cashBalance - $orderValue;
+
+        // Check cash sufficiency
+        if ($cashAfterOrder < 0) {
+            $violations[] = [
+                'type' => 'INSUFFICIENT_CASH',
+                'severity' => 'CRITICAL',
+                'message' => sprintf(
+                    'Insufficient cash: Rp %.0f available, Rp %.0f required',
+                    $cashBalance,
+                    $orderValue
+                ),
+                'cash_balance' => $cashBalance,
+                'order_value' => $orderValue,
+                'shortfall' => round(abs($cashAfterOrder), 2),
+            ];
+        }
+
+        // Check against limits
+        foreach ($limits as $limit) {
+            $limitValue = (float) $limit['limit_value'];
+            $limitType = $limit['limit_type'];
+
+            if ($limitType === 'MAX_ORDER_VALUE' && $orderValue > $limitValue) {
+                $violations[] = [
+                    'type' => 'MAX_ORDER_VALUE_EXCEEDED',
+                    'severity' => 'HIGH',
+                    'message' => sprintf(
+                        'Order value Rp %.0f exceeds max order limit Rp %.0f',
+                        $orderValue,
+                        $limitValue
+                    ),
+                    'limit_value' => $limitValue,
+                    'order_value' => $orderValue,
+                ];
+            }
+
+            if ($limitType === 'MIN_CASH_RESERVE' && $cashAfterOrder < $limitValue) {
+                $violations[] = [
+                    'type' => 'MIN_CASH_RESERVE_BREACH',
+                    'severity' => 'HIGH',
+                    'message' => sprintf(
+                        'Cash after order Rp %.0f would breach minimum reserve Rp %.0f',
+                        $cashAfterOrder,
+                        $limitValue
+                    ),
+                    'limit_value' => $limitValue,
+                    'cash_after_order' => round($cashAfterOrder, 2),
+                ];
+            }
+
+            if ($limitType === 'MAX_CAPITAL_DEPLOYMENT') {
+                $deploymentPct = $totalCapital > 0 ? (($positionValue + $orderValue) / $totalCapital) * 100 : 0;
+                if ($deploymentPct > $limitValue) {
+                    $violations[] = [
+                        'type' => 'MAX_CAPITAL_DEPLOYMENT_EXCEEDED',
+                        'severity' => 'HIGH',
+                        'message' => sprintf(
+                            'Capital deployment %.1f%% exceeds max %.1f%%',
+                            $deploymentPct,
+                            $limitValue
+                        ),
+                        'limit_value' => $limitValue,
+                        'current_deployment_pct' => round($deploymentPct, 1),
+                    ];
+                }
+            }
+        }
+
+        $passed = count($violations) === 0;
+
+        return [
+            'check' => 'CAPITAL_THRESHOLD',
+            'passed' => $passed,
+            'violation_count' => count($violations),
+            'violations' => $violations,
+            'cash_balance' => round($cashBalance, 2),
+            'position_value' => round($positionValue, 2),
+            'total_capital' => round($totalCapital, 2),
+            'order_value' => round($orderValue, 2),
+            'cash_after_order' => round($cashAfterOrder, 2),
+            'message' => $passed
+                ? 'Capital threshold check passed'
+                : sprintf('%d capital threshold violation(s) detected', count($violations)),
+        ];
+    }
+
+    /**
+     * Calculate minimum capital required for a transaction.
+     *
+     * Includes order value, broker commission, exchange fees, clearing fees,
+     * and VAT on commission. Validates lot size (1 lot = 100 shares for BEI),
+     * checks against cash balance and risk limits.
+     *
+     * @param string $portfolioId
+     * @param string $instrumentId
+     * @param float $quantity  Number of shares (must be multiple of 100 for BEI)
+     * @param float $price     Order price per share
+     * @param string $side     BUY or SELL
+     * @return array Detailed breakdown of minimum capital requirement
+     */
+    public function calculateMinimumCapital(
+        string $portfolioId,
+        string $instrumentId,
+        float $quantity,
+        float $price,
+        string $side = 'BUY'
+    ): array {
+        // ─── Validate inputs ───────────────────────────────────────────
+        if ($quantity <= 0) {
+            throw new ApiException(422, 'VALIDATION_ERROR', 'Quantity must be greater than 0');
+        }
+        if ($price <= 0) {
+            throw new ApiException(422, 'VALIDATION_ERROR', 'Price must be greater than 0');
+        }
+        if (!in_array($side, ['BUY', 'SELL'], true)) {
+            throw new ApiException(422, 'VALIDATION_ERROR', 'Side must be BUY or SELL');
+        }
+
+        // ─── Constants: BEI / KPEI fee structure ───────────────────────
+        $LOT_SIZE = 100;
+        $COMMISSION_RATE_BUY = 0.0015;   // 0.15% broker commission for BUY
+        $COMMISSION_RATE_SELL = 0.0025;  // 0.25% broker commission for SELL (incl. sales tax)
+        $BEI_FEE_RATE = 0.00004;         // 0.004% Bursa Efek Indonesia fee
+        $KPEI_FEE_RATE = 0.00003;        // 0.003% KPEI clearing fee
+        $VAT_RATE = 0.11;                // 11% PPN on commission
+        $MIN_COMMISSION = 10000;         // Minimum broker commission Rp 10,000
+
+        // ─── Validate lot size ─────────────────────────────────────────
+        $lots = (int) ($quantity / $LOT_SIZE);
+        $remainder = $quantity % $LOT_SIZE;
+        $lotWarning = null;
+        if ($remainder !== 0) {
+            $lotWarning = sprintf(
+                'Quantity %s is not a multiple of %d'
+                . ' (1 lot = 100 shares on BEI).'
+                . ' Nearest valid quantity: %d shares (%d lots).',
+                $this->fmtNumber($quantity),
+                $LOT_SIZE,
+                $lots * $LOT_SIZE,
+                $lots
+            );
+            // Round down to nearest lot
+            $effectiveQuantity = (float) ($lots * $LOT_SIZE);
+            if ($effectiveQuantity <= 0) {
+                $effectiveQuantity = $LOT_SIZE;
+                $lots = 1;
+            }
+        } else {
+            $effectiveQuantity = $quantity;
+        }
+
+        // ─── Calculate order value ─────────────────────────────────────
+        $orderValue = $effectiveQuantity * $price;
+
+        // ─── Calculate fees ────────────────────────────────────────────
+        $commissionRate = $side === 'BUY' ? $COMMISSION_RATE_BUY : $COMMISSION_RATE_SELL;
+        $commission = max($orderValue * $commissionRate, $MIN_COMMISSION);
+        $vatOnCommission = $commission * $VAT_RATE;
+        $beiFee = $orderValue * $BEI_FEE_RATE;
+        $kpeiFee = $orderValue * $KPEI_FEE_RATE;
+
+        // For SELL: include sales tax (0.1% of transaction value)
+        $salesTax = $side === 'SELL' ? $orderValue * 0.001 : 0.0;
+
+        $totalFees = $commission + $vatOnCommission + $beiFee + $kpeiFee + $salesTax;
+
+        // ─── Minimum capital required ──────────────────────────────────
+        $minCapital = $side === 'BUY'
+            ? $orderValue + $totalFees
+            : max($totalFees, $MIN_COMMISSION); // For SELL, only need fees (shares already held)
+
+        // ─── Get portfolio cash balance ────────────────────────────────
+        $cashStmt = $this->db->prepare(
+            'SELECT cb.available_balance FROM portfolio.cash_balance cb
+             WHERE cb.portfolio_id = :pid ORDER BY as_of DESC LIMIT 1'
+        );
+        $cashStmt->execute([':pid' => $portfolioId]);
+        $cashBalance = (float) ($cashStmt->fetchColumn() ?: 0);
+
+        // ─── Get instrument ticker for display ─────────────────────────
+        $tickerStmt = $this->db->prepare(
+            'SELECT l.ticker FROM market_master.listing l
+             WHERE l.instrument_id = :iid AND l.status = "ACTIVE" LIMIT 1'
+        );
+        $tickerStmt->execute([':iid' => $instrumentId]);
+        $ticker = $tickerStmt->fetchColumn() ?: 'UNKNOWN';
+
+        // ─── Get risk limits relevant to minimum capital ───────────────
+        $limitStmt = $this->db->prepare(
+            'SELECT limit_type, limit_value, limit_unit FROM risk.risk_limit
+             WHERE portfolio_id = :pid AND status = "ACTIVE"
+               AND limit_type IN ("MAX_ORDER_VALUE", "MAX_POSITION_VALUE", "MIN_CASH_RESERVE")'
+        );
+        $limitStmt->execute([':pid' => $portfolioId]);
+        $limits = $limitStmt->fetchAll();
+
+        $limitChecks = [];
+        $limitViolations = [];
+
+        foreach ($limits as $limit) {
+            $limitValue = (float) $limit['limit_value'];
+            $limitType = $limit['limit_type'];
+
+            if ($limitType === 'MAX_ORDER_VALUE' && $orderValue > $limitValue) {
+                $limitViolations[] = [
+                    'type' => 'MAX_ORDER_VALUE_EXCEEDED',
+                    'severity' => 'HIGH',
+                    'message' => sprintf(
+                        'Order value Rp %s exceeds max order limit Rp %s',
+                        $this->fmtNumber($orderValue),
+                        $this->fmtNumber($limitValue)
+                    ),
+                    'limit_value' => $limitValue,
+                    'order_value' => $orderValue,
+                ];
+            }
+
+            if ($limitType === 'MIN_CASH_RESERVE') {
+                $cashAfterOrder = $cashBalance - $minCapital;
+                if ($cashAfterOrder < $limitValue) {
+                    $limitViolations[] = [
+                        'type' => 'MIN_CASH_RESERVE_BREACH',
+                        'severity' => 'HIGH',
+                        'message' => sprintf(
+                            'Cash after order Rp %s would breach minimum reserve Rp %s',
+                            $this->fmtNumber($cashAfterOrder),
+                            $this->fmtNumber($limitValue)
+                        ),
+                        'limit_value' => $limitValue,
+                        'cash_after_order' => round($cashAfterOrder, 2),
+                    ];
+                }
+                $limitChecks[] = [
+                    'limit_type' => 'MIN_CASH_RESERVE',
+                    'limit_value' => $limitValue,
+                    'cash_after_order' => round($cashBalance - $minCapital, 2),
+                    'passed' => ($cashBalance - $minCapital) >= $limitValue,
+                ];
+            }
+
+            if ($limitType === 'MAX_POSITION_VALUE' && $side === 'BUY' && $orderValue > $limitValue) {
+                $limitViolations[] = [
+                    'type' => 'MAX_POSITION_VALUE_EXCEEDED',
+                    'severity' => 'HIGH',
+                    'message' => sprintf(
+                        'Position value Rp %s exceeds max position limit Rp %s',
+                        $this->fmtNumber($orderValue),
+                        $this->fmtNumber($limitValue)
+                    ),
+                    'limit_value' => $limitValue,
+                    'order_value' => $orderValue,
+                ];
+            }
+        }
+
+        // ─── Capital sufficiency ───────────────────────────────────────
+        $shortfall = max(0, $minCapital - $cashBalance);
+        $sufficient = $cashBalance >= $minCapital;
+
+        // ─── Per-unit cost breakdown ───────────────────────────────────
+        $costPerShare = $effectiveQuantity > 0 ? $minCapital / $effectiveQuantity : 0;
+        $effectivePrice = $side === 'BUY'
+            ? $price + ($totalFees / $effectiveQuantity)
+            : $price - ($totalFees / $effectiveQuantity);
+
+        return [
+            'check' => 'MINIMUM_CAPITAL',
+            'portfolio_id' => $portfolioId,
+            'instrument_id' => $instrumentId,
+            'ticker' => $ticker,
+            'side' => $side,
+            'quantity_requested' => $quantity,
+            'quantity_effective' => $effectiveQuantity,
+            'lots' => $lots,
+            'lot_size' => $LOT_SIZE,
+            'lot_warning' => $lotWarning,
+            'price' => round($price, 4),
+            'effective_price' => round($effectivePrice, 4),
+            'cost_per_share' => round($costPerShare, 4),
+            'order_value' => round($orderValue, 2),
+            'fee_breakdown' => [
+                'broker_commission' => round($commission, 2),
+                'commission_rate' => $commissionRate,
+                'vat_on_commission' => round($vatOnCommission, 2),
+                'vat_rate' => $VAT_RATE,
+                'bei_fee' => round($beiFee, 2),
+                'bei_fee_rate' => $BEI_FEE_RATE,
+                'kpei_fee' => round($kpeiFee, 2),
+                'kpei_fee_rate' => $KPEI_FEE_RATE,
+                'sales_tax' => round($salesTax, 2),
+                'total_fees' => round($totalFees, 2),
+            ],
+            'minimum_capital' => round($minCapital, 2),
+            'cash_balance' => round($cashBalance, 2),
+            'shortfall' => round($shortfall, 2),
+            'sufficient' => $sufficient,
+            'limit_checks' => $limitChecks,
+            'limit_violations' => $limitViolations,
+            'violation_count' => count($limitViolations),
+            'passed' => $sufficient && count($limitViolations) === 0,
+            'message' => $sufficient
+                ? (count($limitViolations) === 0
+                    ? 'Minimum capital is sufficient for this transaction'
+                    : sprintf('Capital is sufficient but %d limit violation(s) detected', count($limitViolations)))
+                : sprintf(
+                    'Insufficient capital: Rp %s required, Rp %s available, shortfall Rp %s',
+                    $this->fmtNumber($minCapital),
+                    $this->fmtNumber($cashBalance),
+                    $this->fmtNumber($shortfall)
+                ),
+        ];
+    }
+
+    /**
+     * Format a number with thousand separators (Indonesian style).
+     */
+    private function fmtNumber(float $value): string
+    {
+        return number_format($value, 0, ',', '.');
+    }
 }

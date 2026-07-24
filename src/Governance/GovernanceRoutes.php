@@ -41,6 +41,15 @@ final class GovernanceRoutes
         $router->get('/workflows/{id}/steps', [self::class, 'listWorkflowSteps'], ['bearer']);
         $router->post('/workflows/{id}/steps/{stepId}/complete', [self::class, 'completeStep'], ['bearer']);
         $router->post('/workflows/{id}/cancel', [self::class, 'cancelWorkflow'], ['bearer']);
+
+        // Compliance Checks
+        $router->post('/compliance/duplicate-order', [self::class, 'checkDuplicateOrder'], ['bearer']);
+        $router->post('/compliance/erroneous-order', [self::class, 'checkErroneousOrder'], ['bearer']);
+        $router->post('/compliance/capital-threshold', [self::class, 'checkCapitalThreshold'], ['bearer']);
+        $router->post('/compliance/minimum-capital', [self::class, 'calculateMinimumCapital'], ['bearer']);
+
+        // GDPR Erasure
+        $router->post('/gdpr/erasure', [self::class, 'gdprErasure'], ['bearer']);
     }
 
     private static function service(): GovernanceService
@@ -267,5 +276,71 @@ final class GovernanceRoutes
             }
         }
         return $filters;
+    }
+
+    // ─── Compliance Checks ──────────────────────────────────────────────
+
+    public static function checkDuplicateOrder(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->checkDuplicateOrder(
+                (string) $request->getBody('portfolio_id', ''),
+                (string) $request->getBody('instrument_id', ''),
+                (string) $request->getBody('side', 'BUY'),
+                (float) $request->getBody('quantity', 0),
+                (float) $request->getBody('price', 0)
+            )
+        );
+    }
+
+    public static function checkErroneousOrder(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->checkErroneousOrder(
+                (string) $request->getBody('portfolio_id', ''),
+                (string) $request->getBody('instrument_id', ''),
+                (string) $request->getBody('side', 'BUY'),
+                (float) $request->getBody('quantity', 0),
+                (float) $request->getBody('price', 0)
+            )
+        );
+    }
+
+    public static function checkCapitalThreshold(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->checkCapitalThreshold(
+                (string) $request->getBody('portfolio_id', ''),
+                (float) $request->getBody('order_value', 0)
+            )
+        );
+    }
+
+    public static function calculateMinimumCapital(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->calculateMinimumCapital(
+                (string) $request->getBody('portfolio_id', ''),
+                (string) $request->getBody('instrument_id', ''),
+                (float) $request->getBody('quantity', 0),
+                (float) $request->getBody('price', 0),
+                (string) $request->getBody('side', 'BUY')
+            )
+        );
+    }
+
+    public static function gdprErasure(Request $request): Response
+    {
+        $ownerId = (string) $request->getBody('owner_id', '');
+        if ($ownerId === '') {
+            $ownerId = $request->getOwnerId() ?? '';
+        }
+        if ($ownerId === '') {
+            throw new ApiException(422, 'VALIDATION_ERROR', 'owner_id is required for GDPR erasure');
+        }
+
+        $job = new \Platform\Core\Data\RetentionJob(false);
+        $result = $job->gdprErasure($ownerId);
+        return Response::ok($result);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Platform\Core;
 
+use Platform\Core\EventBus\EventBus;
 use Platform\Governance\GovernanceService;
 use Platform\Risk\RiskService;
 use Platform\Settlement\SettlementService;
@@ -16,6 +17,8 @@ use Platform\Settlement\SettlementService;
 final class ServiceHub
 {
     private static ?ServiceHub $instance = null;
+
+    private ?string $correlationId = null;
 
     private function __construct()
     {
@@ -45,6 +48,16 @@ final class ServiceHub
     {
         $svc = Application::getInstance()->getService('governance');
         return $svc instanceof GovernanceService ? $svc : null;
+    }
+
+    public function setCorrelationId(?string $id): void
+    {
+        $this->correlationId = $id;
+    }
+
+    public function getCorrelationId(): ?string
+    {
+        return $this->correlationId;
     }
 
     /**
@@ -132,6 +145,18 @@ final class ServiceHub
             'entity_id' => $entityId,
             'old_values' => $oldValues,
             'new_values' => $newValues,
+            'correlation_id' => $this->correlationId,
         ]);
+
+        // Also emit event to RabbitMQ (fail-safe)
+        EventBus::getInstance()->emit(
+            strtolower($entityType) . '.' . strtolower($action),
+            [
+                'entity_type' => $entityType,
+                'entity_id' => $entityId,
+                'action' => $action,
+            ],
+            $this->correlationId
+        );
     }
 }

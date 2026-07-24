@@ -15,6 +15,7 @@ final class Request
     private array $body = [];
     private ?string $ownerId = null;
     private ?string $accessJti = null;
+    private ?string $correlationId = null;
 
     public function __construct()
     {
@@ -98,5 +99,15 @@ final class Request
     public function setAccessJti(?string $accessJti): void
     {
         $this->accessJti = $accessJti;
+    }
+
+    public function getCorrelationId(): ?string
+    {
+        return $this->correlationId;
+    }
+
+    public function setCorrelationId(?string $correlationId): void
+    {
+        $this->correlationId = $correlationId;
     }
 }

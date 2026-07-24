@@ -56,12 +56,59 @@ final class AnalyticsRoutes
         $router->post('/models', [self::class, 'createModel'], ['bearer']);
         $router->get('/models/{id}', [self::class, 'getModel'], ['bearer']);
         $router->put('/models/{id}', [self::class, 'updateModel'], ['bearer']);
+        $router->post('/models/{id}/deploy', [self::class, 'deployModel'], ['bearer']);
+        $router->post('/models/{id}/retire', [self::class, 'retireModel'], ['bearer']);
 
         // Backtests
         $router->get('/backtests', [self::class, 'listBacktests'], ['bearer']);
         $router->post('/backtests', [self::class, 'createBacktest'], ['bearer']);
         $router->get('/backtests/{id}', [self::class, 'getBacktest'], ['bearer']);
         $router->get('/backtests/{id}/status', [self::class, 'backtestStatus'], ['bearer']);
+
+        // Support/Resistance & Trend
+        $router->get('/instruments/{id}/support-resistance', [self::class, 'supportResistance'], ['bearer']);
+        $router->get('/instruments/{id}/trend', [self::class, 'trend'], ['bearer']);
+
+        // Technical Indicators
+        $router->get('/instruments/{id}/indicators', [self::class, 'allIndicators'], ['bearer']);
+        $router->get('/instruments/{id}/indicators/sma', [self::class, 'sma'], ['bearer']);
+        $router->get('/instruments/{id}/indicators/ema', [self::class, 'ema'], ['bearer']);
+        $router->get('/instruments/{id}/indicators/rsi', [self::class, 'rsi'], ['bearer']);
+        $router->get('/instruments/{id}/indicators/macd', [self::class, 'macd'], ['bearer']);
+        $router->get('/instruments/{id}/indicators/bollinger', [self::class, 'bollinger'], ['bearer']);
+        $router->get('/instruments/{id}/indicators/atr', [self::class, 'atr'], ['bearer']);
+        $router->get('/instruments/{id}/indicators/adx', [self::class, 'adx'], ['bearer']);
+
+        // Market Regime
+        $router->get('/instruments/{id}/regime', [self::class, 'marketRegime'], ['bearer']);
+
+        // Screening Engine
+        $router->post('/screening', [self::class, 'runScreening'], ['bearer']);
+
+        // Composite Decision
+        $router->get('/instruments/{id}/composite-score', [self::class, 'compositeScore'], ['bearer']);
+
+        // Market Microstructure
+        $router->get('/instruments/{id}/bid-ask-spread', [self::class, 'bidAskSpread'], ['bearer']);
+        $router->get('/instruments/{id}/order-book', [self::class, 'orderBookDepth'], ['bearer']);
+        $router->post('/instruments/{id}/market-impact', [self::class, 'marketImpact'], ['bearer']);
+        $router->get('/instruments/{id}/liquidity-score', [self::class, 'liquidityScore'], ['bearer']);
+
+        // Market Factor Matrix
+        $router->get('/factors/global-indonesia', [self::class, 'globalFactors'], ['bearer']);
+        $router->get('/factors/rupiah-pressure', [self::class, 'rupiahPressure'], ['bearer']);
+        $router->get('/factors/flow-confirmation', [self::class, 'flowConfirmation'], ['bearer']);
+
+        // Data Quality
+        $router->get('/data-quality/ohlcv/{id}', [self::class, 'ohlcvDataQuality'], ['bearer']);
+
+        // Market Factor Matrix
+        $router->get('/factors/instrument/{id}', [self::class, 'instrumentFactors'], ['bearer']);
+        $router->get('/factors/portfolio/{id}', [self::class, 'portfolioFactorMatrix'], ['bearer']);
+
+        // Explainable AI
+        $router->post('/explain/recommendation', [self::class, 'explainRecommendation'], ['bearer']);
+        $router->post('/explain/signal', [self::class, 'explainSignal'], ['bearer']);
     }
 
     // ─── Features ────────────────────────────────────────────────────────
@@ -356,6 +403,128 @@ final class AnalyticsRoutes
         return Response::ok(self::required($row, 'BACKTEST_NOT_FOUND', 'Backtest was not found'));
     }
 
+    // ─── Support/Resistance & Trend ──────────────────────────────────────
+
+    public static function supportResistance(Request $request): Response
+    {
+        $lookback = (int) $request->getQuery('lookback', 5);
+        $bars = (int) $request->getQuery('bars', 50);
+        return Response::ok(
+            self::service()->detectSupportResistance(
+                (string) $request->getParam('id'),
+                $lookback,
+                $bars
+            )
+        );
+    }
+
+    public static function trend(Request $request): Response
+    {
+        $shortPeriod = (int) $request->getQuery('short_period', 20);
+        $longPeriod = (int) $request->getQuery('long_period', 50);
+        return Response::ok(
+            self::service()->identifyTrend(
+                (string) $request->getParam('id'),
+                $shortPeriod,
+                $longPeriod
+            )
+        );
+    }
+
+    // ─── Technical Indicators ────────────────────────────────────────────
+
+    public static function allIndicators(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->getAllTechnicalIndicators((string) $request->getParam('id'))
+        );
+    }
+
+    public static function sma(Request $request): Response
+    {
+        $period = (int) $request->getQuery('period', 20);
+        return Response::ok(
+            self::service()->calculateSMA((string) $request->getParam('id'), $period)
+        );
+    }
+
+    public static function ema(Request $request): Response
+    {
+        $period = (int) $request->getQuery('period', 20);
+        return Response::ok(
+            self::service()->calculateEMA((string) $request->getParam('id'), $period)
+        );
+    }
+
+    public static function rsi(Request $request): Response
+    {
+        $period = (int) $request->getQuery('period', 14);
+        return Response::ok(
+            self::service()->calculateRSI((string) $request->getParam('id'), $period)
+        );
+    }
+
+    public static function macd(Request $request): Response
+    {
+        $fast = (int) $request->getQuery('fast', 12);
+        $slow = (int) $request->getQuery('slow', 26);
+        $signal = (int) $request->getQuery('signal', 9);
+        return Response::ok(
+            self::service()->calculateMACD((string) $request->getParam('id'), $fast, $slow, $signal)
+        );
+    }
+
+    public static function bollinger(Request $request): Response
+    {
+        $period = (int) $request->getQuery('period', 20);
+        $stdDev = (float) $request->getQuery('std_dev', 2.0);
+        return Response::ok(
+            self::service()->calculateBollingerBands((string) $request->getParam('id'), $period, $stdDev)
+        );
+    }
+
+    public static function atr(Request $request): Response
+    {
+        $period = (int) $request->getQuery('period', 14);
+        return Response::ok(
+            self::service()->calculateATRIndicator((string) $request->getParam('id'), $period)
+        );
+    }
+
+    public static function adx(Request $request): Response
+    {
+        $period = (int) $request->getQuery('period', 14);
+        return Response::ok(
+            self::service()->calculateADX((string) $request->getParam('id'), $period)
+        );
+    }
+
+    // ─── Market Regime ───────────────────────────────────────────────────
+
+    public static function marketRegime(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->classifyMarketRegime((string) $request->getParam('id'))
+        );
+    }
+
+    // ─── Screening Engine ────────────────────────────────────────────────
+
+    public static function runScreening(Request $request): Response
+    {
+        $criteria = $request->getAllBody();
+        return Response::ok(self::service()->runScreening($criteria));
+    }
+
+    // ─── Composite Decision ──────────────────────────────────────────────
+
+    public static function compositeScore(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->calculateCompositeScore((string) $request->getParam('id'))
+        );
+    }
+
     // ─── Private Helpers ─────────────────────────────────────────────────
 
     private static function service(): AnalyticsServiceInterface
@@ -385,5 +554,108 @@ final class AnalyticsRoutes
             throw new ApiException(404, $code, $message);
         }
         return $row;
+    }
+
+    // ─── Market Microstructure ────────────────────────────────────────────
+
+    public static function bidAskSpread(Request $request): Response
+    {
+        $id = (string) $request->getParam('id');
+        return Response::ok(self::service()->analyzeBidAskSpread($id));
+    }
+
+    public static function orderBookDepth(Request $request): Response
+    {
+        $id = (string) $request->getParam('id');
+        $levels = (int) $request->getQuery('levels', 5);
+        return Response::ok(self::service()->analyzeOrderBookDepth($id, $levels));
+    }
+
+    public static function marketImpact(Request $request): Response
+    {
+        $id = (string) $request->getParam('id');
+        $orderValue = (float) $request->getBody('order_value', 0);
+        $side = (string) $request->getBody('side', 'BUY');
+        return Response::ok(self::service()->estimateMarketImpact($id, $orderValue, $side));
+    }
+
+    public static function liquidityScore(Request $request): Response
+    {
+        $id = (string) $request->getParam('id');
+        return Response::ok(self::service()->calculateLiquidityScore($id));
+    }
+
+    // ─── Market Factor Matrix ─────────────────────────────────────────────
+
+    public static function globalFactors(Request $request): Response
+    {
+        return Response::ok(self::service()->getGlobalToIndonesiaFactors());
+    }
+
+    public static function rupiahPressure(Request $request): Response
+    {
+        return Response::ok(self::service()->calculateRupiahPressureScore());
+    }
+
+    public static function flowConfirmation(Request $request): Response
+    {
+        return Response::ok(self::service()->calculateFlowConfirmationScore());
+    }
+
+    // ─── Model Governance ──────────────────────────────────────────────
+
+    public static function deployModel(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->deployModel((string) $request->getParam('id'), $request->getAllBody())
+        );
+    }
+
+    public static function retireModel(Request $request): Response
+    {
+        $reason = (string) $request->getBody('reason', '');
+        return Response::ok(
+            self::service()->retireModel((string) $request->getParam('id'), $reason)
+        );
+    }
+
+    // ─── Data Quality ──────────────────────────────────────────────────
+
+    public static function ohlcvDataQuality(Request $request): Response
+    {
+        $engine = new \Platform\Core\Data\DataQualityEngine();
+        return Response::ok($engine->assessOhlcvQuality((string) $request->getParam('id')));
+    }
+
+    // ─── Market Factor Matrix ──────────────────────────────────────────
+
+    public static function instrumentFactors(Request $request): Response
+    {
+        $matrix = new \Platform\Core\Analytics\MarketFactorMatrix();
+        return Response::ok($matrix->calculateInstrumentFactors((string) $request->getParam('id')));
+    }
+
+    public static function portfolioFactorMatrix(Request $request): Response
+    {
+        $matrix = new \Platform\Core\Analytics\MarketFactorMatrix();
+        return Response::ok($matrix->calculatePortfolioFactorMatrix((string) $request->getParam('id')));
+    }
+
+    // ─── Explainable AI ────────────────────────────────────────────────
+
+    public static function explainRecommendation(Request $request): Response
+    {
+        $xai = \Platform\Core\Analytics\ExplainableAI::getInstance();
+        $recommendation = $request->getBody('recommendation', []);
+        $features = $request->getBody('features', []);
+        return Response::ok($xai->explainRecommendation($recommendation, $features));
+    }
+
+    public static function explainSignal(Request $request): Response
+    {
+        $xai = \Platform\Core\Analytics\ExplainableAI::getInstance();
+        $signal = $request->getBody('signal', []);
+        $indicators = $request->getBody('indicators', []);
+        return Response::ok($xai->explainSignal($signal, $indicators));
     }
 }

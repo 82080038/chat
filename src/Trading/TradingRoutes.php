@@ -40,7 +40,9 @@ final class TradingRoutes
         $router->post('/orders', [self::class, 'submitOrder'], ['bearer']);
         $router->get('/orders/{id}', [self::class, 'getOrder'], ['bearer']);
         $router->post('/orders/{id}/cancel', [self::class, 'cancelOrder'], ['bearer']);
+        $router->patch('/orders/{id}', [self::class, 'modifyOrder'], ['bearer']);
         $router->get('/orders/{id}/executions', [self::class, 'orderExecutions'], ['bearer']);
+        $router->post('/orders/duplicate-check', [self::class, 'checkDuplicateOrder'], ['bearer']);
 
         // Executions
         $router->get('/executions', [self::class, 'listExecutions'], ['bearer']);
@@ -203,6 +205,20 @@ final class TradingRoutes
         $reason = (string) $request->getBody('reason', 'Cancelled by owner');
         return Response::ok(
             self::service()->cancelOrder((string) $request->getParam('id'), $reason)
+        );
+    }
+
+    public static function modifyOrder(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->modifyOrder((string) $request->getParam('id'), $request->getAllBody())
+        );
+    }
+
+    public static function checkDuplicateOrder(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->checkDuplicateOrder($request->getAllBody())
         );
     }
 

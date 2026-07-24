@@ -544,4 +544,89 @@ final class IdentityService extends BaseService implements IdentityServiceInterf
             ':created_at' => $this->now(),
         ]);
     }
+
+    // ─── Kill Switch ──────────────────────────────────────────────────
+
+    public function activateKillSwitch(string $reason): array
+    {
+        $owner = $this->getOwner();
+        if ($owner === null) {
+            throw new ApiException(404, 'OWNER_NOT_FOUND', 'Owner account was not found');
+        }
+
+        $now = $this->now();
+        $stmt = $this->db->prepare(
+            'UPDATE identity.owner_account SET status = :status, locked_at = :locked_at WHERE singleton_key = 1'
+        );
+        $stmt->execute([':status' => 'LOCKED', ':locked_at' => $now]);
+
+        // Revoke all active sessions
+        $this->db->prepare(
+            'UPDATE identity.owner_session SET revoked_at = :now WHERE revoked_at IS NULL'
+        )->execute([':now' => $now]);
+
+        // Activity log
+        $this->writeOwnerActivity(
+            'KILL_SWITCH_ACTIVATED',
+            'OWNER',
+            $owner['owner_id'],
+            "Kill switch activated: {$reason}",
+            []
+        );
+
+        // Emit event (fail-safe)
+        \Platform\Core\EventBus\EventBus::getInstance()->emit('system.kill_switch.activated', [
+            'owner_id' => $owner['owner_id'],
+            'reason' => $reason,
+            'activated_at' => $now,
+        ]);
+
+        return [
+            'status' => 'LOCKED',
+            'reason' => $reason,
+            'activated_at' => $now,
+            'sessions_revoked' => true,
+        ];
+    }
+
+    public function deactivateKillSwitch(): array
+    {
+        $owner = $this->getOwner();
+        if ($owner === null) {
+            throw new ApiException(404, 'OWNER_NOT_FOUND', 'Owner account was not found');
+        }
+
+        $now = $this->now();
+        $stmt = $this->db->prepare(
+            'UPDATE identity.owner_account SET status = :status, locked_at = NULL WHERE singleton_key = 1'
+        );
+        $stmt->execute([':status' => 'ACTIVE']);
+
+        $this->writeOwnerActivity(
+            'KILL_SWITCH_DEACTIVATED',
+            'OWNER',
+            $owner['owner_id'],
+            'Kill switch deactivated — owner account restored',
+            []
+        );
+
+        \Platform\Core\EventBus\EventBus::getInstance()->emit('system.kill_switch.deactivated', [
+            'owner_id' => $owner['owner_id'],
+            'deactivated_at' => $now,
+        ]);
+
+        return [
+            'status' => 'ACTIVE',
+            'deactivated_at' => $now,
+        ];
+    }
+
+    public function isKillSwitchActive(): bool
+    {
+        $owner = $this->getOwner();
+        if ($owner === null) {
+            return false;
+        }
+        return ($owner['status'] ?? 'ACTIVE') === 'LOCKED';
+    }
 }

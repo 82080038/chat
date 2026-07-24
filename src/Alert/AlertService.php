@@ -292,11 +292,12 @@ final class AlertService extends BaseService implements AlertServiceInterface
 
         $triggered = [];
         foreach ($alerts as $alert) {
-            if ($this->evaluateCondition(
+            $condition = $this->evaluateCondition(
                 $currentPrice,
                 $alert['condition_op'],
                 (float) $alert['threshold']
-            )) {
+            );
+            if ($condition) {
                 $result = $this->triggerAlert($alert['alert_id'], [
                     'value' => $currentPrice,
                 ]);

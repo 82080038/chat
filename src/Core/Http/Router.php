@@ -69,6 +69,13 @@ final class Router
             $path = '/';
         }
 
+        // Generate or reuse correlation ID for request traceability
+        $correlationId = $request->getHeader('x-correlation-id');
+        if ($correlationId === null) {
+            $correlationId = \Ramsey\Uuid\Uuid::uuid7()->toString();
+        }
+        $request->setCorrelationId($correlationId);
+
         foreach ($this->routes as $route) {
             if ($route['method'] !== $method) {
                 continue;
@@ -78,6 +85,9 @@ final class Router
                 $startedAt = microtime(true);
                 $params = array_filter($matches, fn($key) => !is_int($key), ARRAY_FILTER_USE_KEY);
                 $request->setParams($params);
+
+                // Propagate correlation ID to ServiceHub
+                \Platform\Core\ServiceHub::getInstance()->setCorrelationId($correlationId);
 
                 try {
                     foreach ($route['middleware'] as $mwName) {

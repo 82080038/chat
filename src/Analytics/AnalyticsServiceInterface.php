@@ -77,4 +77,46 @@ interface AnalyticsServiceInterface
     public function getBacktestStatus(string $id): ?array;
 
     public function updateBacktestResults(string $id, array $data): array;
+
+    // Support/Resistance & Trend Detection
+    public function detectSupportResistance(string $instrumentId, int $lookback, int $bars): array;
+
+    public function identifyTrend(string $instrumentId, int $shortPeriod, int $longPeriod): array;
+
+    // Technical Indicators
+    public function calculateSMA(string $instrumentId, int $period): array;
+
+    public function calculateEMA(string $instrumentId, int $period): array;
+
+    public function calculateRSI(string $instrumentId, int $period): array;
+
+    public function calculateMACD(string $instrumentId, int $fastPeriod, int $slowPeriod, int $signalPeriod): array;
+
+    public function calculateBollingerBands(string $instrumentId, int $period, float $stdDevMultiplier): array;
+
+    public function calculateATRIndicator(string $instrumentId, int $period): array;
+
+    public function calculateADX(string $instrumentId, int $period): array;
+
+    public function getAllTechnicalIndicators(string $instrumentId): array;
+
+    // Market Regime
+    public function classifyMarketRegime(string $instrumentId): array;
+
+    // Screening Engine
+    public function runScreening(array $criteria): array;
+
+    // Composite Decision
+    public function calculateCompositeScore(string $instrumentId): array;
+
+    // Market Microstructure
+    public function analyzeBidAskSpread(string $instrumentId): array;
+    public function analyzeOrderBookDepth(string $instrumentId, int $levels = 5): array;
+    public function estimateMarketImpact(string $instrumentId, float $orderValue, string $side = 'BUY'): array;
+    public function calculateLiquidityScore(string $instrumentId): array;
+
+    // Market Factor Matrix
+    public function getGlobalToIndonesiaFactors(): array;
+    public function calculateRupiahPressureScore(): array;
+    public function calculateFlowConfirmationScore(): array;
 }

@@ -22,6 +22,9 @@ final class IdentityRoutes
         $router->post('/auth/change-password', [self::class, 'changePassword'], ['bearer']);
         $router->get('/auth/preferences', [self::class, 'preferences'], ['bearer']);
         $router->put('/auth/preferences', [self::class, 'updatePreferences'], ['bearer']);
+        $router->post('/auth/kill-switch', [self::class, 'activateKillSwitch'], ['bearer']);
+        $router->delete('/auth/kill-switch', [self::class, 'deactivateKillSwitch'], ['bearer']);
+        $router->get('/auth/kill-switch', [self::class, 'killSwitchStatus'], ['bearer']);
     }
 
     public static function setup(Request $request): Response
@@ -115,7 +118,27 @@ final class IdentityRoutes
         return [
             'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
             'user_agent' => $request->getHeader('user-agent'),
-            'correlation_id' => $request->getHeader('x-correlation-id'),
+            'correlation_id' => $request->getCorrelationId(),
         ];
+    }
+
+    public static function activateKillSwitch(Request $request): Response
+    {
+        $reason = (string) $request->getBody('reason', 'Emergency shutdown');
+        $result = self::service()->activateKillSwitch($reason);
+        return Response::ok($result);
+    }
+
+    public static function deactivateKillSwitch(Request $request): Response
+    {
+        $result = self::service()->deactivateKillSwitch();
+        return Response::ok($result);
+    }
+
+    public static function killSwitchStatus(Request $request): Response
+    {
+        return Response::ok([
+            'active' => self::service()->isKillSwitchActive(),
+        ]);
     }
 }

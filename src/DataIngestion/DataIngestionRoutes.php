@@ -23,6 +23,7 @@ final class DataIngestionRoutes
             ['bearer']
         );
         $router->get('/ingestion/status', [self::class, 'getIngestionStatus'], ['bearer']);
+        $router->get('/ingestion/quality/{instrumentId}', [self::class, 'dataQuality'], ['bearer']);
     }
 
     private static function service(): DataIngestionService
@@ -81,6 +82,12 @@ final class DataIngestionRoutes
     public static function getIngestionStatus(Request $request): Response
     {
         return Response::ok(self::service()->getIngestionStatus());
+    }
+
+    public static function dataQuality(Request $request): Response
+    {
+        $instrumentId = (string) $request->getParam('instrumentId');
+        return Response::ok(self::service()->runDataQualityChecks($instrumentId));
     }
 
     private static function parsePage(array $query): array

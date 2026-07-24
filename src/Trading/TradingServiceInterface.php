@@ -48,7 +48,17 @@ interface TradingServiceInterface
 
     public function cancelOrder(string $id, string $reason): array;
 
+    public function modifyOrder(string $id, array $data): array;
+
     public function getOrderExecutions(string $orderId): array;
+
+    /**
+     * Detect duplicate orders within a time window.
+     *
+     * @param array<string, mixed> $orderData
+     * @return array{is_duplicate: bool, matches: array<int, array<string, mixed>>}
+     */
+    public function checkDuplicateOrder(array $orderData): array;
 
     // Executions
     public function listExecutions(array $filters, int $page, int $perPage): array;

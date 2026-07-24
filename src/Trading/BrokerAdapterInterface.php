@@ -11,6 +11,7 @@ interface BrokerAdapterInterface
     public function getPortfolioHoldings(): array;
     public function getRealtimePrice(string $symbol): array;
     public function placeOrder(array $order): array;
+    public function modifyOrder(string $orderId, array $modifications): array;
     public function cancelOrder(string $orderId): array;
     public function getOrderStatus(string $orderId): array;
     public function getBrokerName(): string;

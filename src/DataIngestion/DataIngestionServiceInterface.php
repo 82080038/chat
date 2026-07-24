@@ -15,4 +15,6 @@ interface DataIngestionServiceInterface
         ?string $toDate
     ): array;
     public function getIngestionStatus(): array;
+
+    public function runDataQualityChecks(string $instrumentId): array;
 }

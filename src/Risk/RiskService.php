@@ -9,7 +9,7 @@ use Platform\Core\Exceptions\ApiException;
 
 final class RiskService extends BaseService implements RiskServiceInterface
 {
-    // ─── Risk Profiles ───────────────────────────────────────────────────
+    // ─── Risk Profiles ─────────────────────────────────────────────
 
     public function listRiskProfiles(array $filters, int $page, int $perPage): array
     {
@@ -111,7 +111,7 @@ final class RiskService extends BaseService implements RiskServiceInterface
         return $this->getRiskProfile($id);
     }
 
-    // ─── Risk Limits ─────────────────────────────────────────────────────
+    // ─── Risk Limits ───────────────────────────────────────────────────
 
     public function listRiskLimits(string $portfolioId): array
     {
@@ -404,7 +404,196 @@ final class RiskService extends BaseService implements RiskServiceInterface
         ];
     }
 
+    // ─── Stop Loss & Correlation ─────────────────────────────────────────
+
+    /**
+     * Calculate stop loss price for a position.
+     *
+     * @param string $instrumentId
+     * @param string $side BUY or SELL
+     * @param float $entryPrice
+     * @param string $method PERCENTAGE, ATR, or SUPPORT
+     * @param float $param Percentage (e.g. 2.0), ATR multiplier (e.g. 2.0), or support level
+     * @return array{stop_loss_price: float, method: string, risk_amount: float, risk_percent: float}
+     */
+    public function calculateStopLoss(
+        string $instrumentId,
+        string $side,
+        float $entryPrice,
+        string $method = 'PERCENTAGE',
+        float $param = 2.0
+    ): array {
+        $stopPrice = 0.0;
+
+        if ($method === 'PERCENTAGE') {
+            $offset = $entryPrice * ($param / 100);
+            $stopPrice = $side === 'BUY' ? $entryPrice - $offset : $entryPrice + $offset;
+        } elseif ($method === 'ATR') {
+            $atr = $this->calculateATR($instrumentId, 14);
+            if ($atr === null) {
+                $offset = $entryPrice * ($param / 100);
+            } else {
+                $offset = $atr * $param;
+            }
+            $stopPrice = $side === 'BUY' ? $entryPrice - $offset : $entryPrice + $offset;
+        } elseif ($method === 'SUPPORT') {
+            $stopPrice = $param;
+            if ($side === 'BUY' && $stopPrice >= $entryPrice) {
+                $stopPrice = $entryPrice * 0.98;
+            }
+            if ($side === 'SELL' && $stopPrice <= $entryPrice) {
+                $stopPrice = $entryPrice * 1.02;
+            }
+        } else {
+            throw new ApiException(
+                422,
+                'VALIDATION_ERROR',
+                'Invalid stop loss method. Must be one of: PERCENTAGE, ATR, SUPPORT'
+            );
+        }
+
+        $riskAmount = abs($entryPrice - $stopPrice);
+        $riskPercent = $entryPrice > 0 ? ($riskAmount / $entryPrice) * 100 : 0;
+
+        return [
+            'stop_loss_price' => round($stopPrice, 4),
+            'method' => $method,
+            'entry_price' => $entryPrice,
+            'side' => $side,
+            'risk_amount' => round($riskAmount, 4),
+            'risk_percent' => round($riskPercent, 2),
+        ];
+    }
+
+    /**
+     * Calculate correlation matrix for portfolio positions.
+     * Uses daily returns from OHLCV data.
+     *
+     * @param string $portfolioId
+     * @return array{instruments: array<string>, matrix: array<array<float>>}
+     */
+    public function calculateCorrelationMatrix(string $portfolioId): array
+    {
+        $positions = $this->db->prepare(
+            'SELECT instrument_id FROM portfolio.position WHERE portfolio_id = :pid AND status = "OPEN"'
+        );
+        $positions->execute([':pid' => $portfolioId]);
+        $instrumentIds = array_column($positions->fetchAll(), 'instrument_id');
+
+        if (count($instrumentIds) < 2) {
+            return ['instruments' => $instrumentIds, 'matrix' => []];
+        }
+
+        $returns = [];
+        foreach ($instrumentIds as $instId) {
+            $returns[$instId] = $this->getDailyReturns($instId, 60);
+        }
+
+        $n = count($instrumentIds);
+        $matrix = [];
+        for ($i = 0; $i < $n; $i++) {
+            $matrix[$i] = [];
+            for ($j = 0; $j < $n; $j++) {
+                if ($i === $j) {
+                    $matrix[$i][$j] = 1.0;
+                } else {
+                    $matrix[$i][$j] = $this->pearsonCorrelation(
+                        $returns[$instrumentIds[$i]],
+                        $returns[$instrumentIds[$j]]
+                    );
+                }
+            }
+        }
+
+        return [
+            'instruments' => $instrumentIds,
+            'matrix' => $matrix,
+        ];
+    }
+
     // ─── Private Helpers ─────────────────────────────────────────────────
+
+    private function calculateATR(string $instrumentId, int $period = 14): ?float
+    {
+        $stmt = $this->db->prepare(
+            'SELECT high, low, close FROM data_ingestion.ohlcv_daily
+             WHERE instrument_id = :id ORDER BY trade_date DESC LIMIT :limit'
+        );
+        $stmt->bindValue(':id', $instrumentId);
+        $stmt->bindValue(':limit', $period + 1, \PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = array_reverse($stmt->fetchAll());
+
+        if (count($rows) < 2) {
+            return null;
+        }
+
+        $trueRanges = [];
+        for ($i = 1; $i < count($rows); $i++) {
+            $high = (float) $rows[$i]['high'];
+            $low = (float) $rows[$i]['low'];
+            $prevClose = (float) $rows[$i - 1]['close'];
+            $tr = max(
+                $high - $low,
+                abs($high - $prevClose),
+                abs($low - $prevClose)
+            );
+            $trueRanges[] = $tr;
+        }
+
+        return array_sum($trueRanges) / count($trueRanges);
+    }
+
+    private function getDailyReturns(string $instrumentId, int $days = 60): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT close FROM data_ingestion.ohlcv_daily
+             WHERE instrument_id = :id ORDER BY trade_date DESC LIMIT :limit'
+        );
+        $stmt->bindValue(':id', $instrumentId);
+        $stmt->bindValue(':limit', $days, \PDO::PARAM_INT);
+        $stmt->execute();
+        $closes = array_reverse(array_map(fn($r) => (float) $r['close'], $stmt->fetchAll()));
+
+        $returns = [];
+        for ($i = 1; $i < count($closes); $i++) {
+            if ($closes[$i - 1] > 0) {
+                $returns[] = ($closes[$i] - $closes[$i - 1]) / $closes[$i - 1];
+            }
+        }
+        return $returns;
+    }
+
+    private function pearsonCorrelation(array $x, array $y): float
+    {
+        $n = min(count($x), count($y));
+        if ($n < 2) {
+            return 0.0;
+        }
+        $x = array_slice($x, -$n);
+        $y = array_slice($y, -$n);
+
+        $meanX = array_sum($x) / $n;
+        $meanY = array_sum($y) / $n;
+
+        $numerator = 0.0;
+        $sumSqX = 0.0;
+        $sumSqY = 0.0;
+        for ($i = 0; $i < $n; $i++) {
+            $dx = $x[$i] - $meanX;
+            $dy = $y[$i] - $meanY;
+            $numerator += $dx * $dy;
+            $sumSqX += $dx * $dx;
+            $sumSqY += $dy * $dy;
+        }
+
+        $denominator = sqrt($sumSqX * $sumSqY);
+        if ($denominator == 0) {
+            return 0.0;
+        }
+
+        return round($numerator / $denominator, 4);
+    }
 
     private function getRiskLimitById(string $id): ?array
     {
@@ -446,5 +635,151 @@ final class RiskService extends BaseService implements RiskServiceInterface
         $stmt = $this->db->prepare("SELECT COUNT(*) FROM {$table} {$clause}");
         $stmt->execute($params);
         return (int) $stmt->fetchColumn();
+    }
+
+    // ─── Liquidity Risk & Gap Risk ──────────────────────────────────────
+
+    /**
+     * Assess liquidity risk for a portfolio.
+     * Evaluates how quickly positions can be liquidated without significant price impact.
+     */
+    public function assessLiquidityRisk(string $portfolioId): array
+    {
+        $positions = $this->db->prepare(
+            'SELECT p.instrument_id, p.quantity, p.average_cost
+             FROM portfolio.position p
+             WHERE p.portfolio_id = :pid AND p.status = "OPEN"'
+        );
+        $positions->execute([':pid' => $portfolioId]);
+        $rows = $positions->fetchAll();
+
+        $positionRisks = [];
+        $totalLiquidationDays = 0;
+        $totalValue = 0;
+        $highRiskPositions = 0;
+
+        foreach ($rows as $pos) {
+            $instrumentId = $pos['instrument_id'];
+            $quantity = (float) $pos['quantity'];
+            $avgCost = (float) $pos['average_cost'];
+            $positionValue = $quantity * $avgCost;
+            $totalValue += $positionValue;
+
+            // Get average daily volume from OHLCV
+            $volStmt = $this->db->prepare(
+                'SELECT AVG(volume) AS avg_vol FROM data_ingestion.ohlcv_daily
+                 WHERE instrument_id = :iid AND trade_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)'
+            );
+            $volStmt->execute([':iid' => $instrumentId]);
+            $avgVol = (float) ($volStmt->fetchColumn() ?: 0);
+
+            // Participation rate: assume max 10% of daily volume
+            $maxDailySell = $avgVol * 0.10;
+            $liquidationDays = $maxDailySell > 0 ? ceil($quantity / $maxDailySell) : 999;
+            $totalLiquidationDays += $liquidationDays;
+
+            // Liquidity risk score: higher days = higher risk
+            $riskScore = min(100, $liquidationDays * 10);
+            $riskLevel = $riskScore >= 70 ? 'HIGH' : ($riskScore >= 40 ? 'MEDIUM' : 'LOW');
+
+            if ($riskLevel === 'HIGH') {
+                $highRiskPositions++;
+            }
+
+            $positionRisks[] = [
+                'instrument_id' => $instrumentId,
+                'quantity' => $quantity,
+                'position_value' => round($positionValue, 2),
+                'avg_daily_volume' => round($avgVol, 0),
+                'max_daily_sellable' => round($maxDailySell, 0),
+                'liquidation_days' => (int) $liquidationDays,
+                'liquidity_risk_score' => round($riskScore, 1),
+                'risk_level' => $riskLevel,
+            ];
+        }
+
+        $portfolioRiskScore = $totalValue > 0
+            ? min(100, ($totalLiquidationDays / max(1, count($rows))) * 10)
+            : 0;
+
+        return [
+            'portfolio_id' => $portfolioId,
+            'total_positions' => count($rows),
+            'total_value' => round($totalValue, 2),
+            'high_risk_positions' => $highRiskPositions,
+            'avg_liquidation_days' => count($rows) > 0 ? round($totalLiquidationDays / count($rows), 1) : 0,
+            'portfolio_liquidity_risk_score' => round($portfolioRiskScore, 1),
+            'portfolio_risk_level' => $portfolioRiskScore >= 70
+                ? 'HIGH'
+                : ($portfolioRiskScore >= 40 ? 'MEDIUM' : 'LOW'),
+            'positions' => $positionRisks,
+        ];
+    }
+
+    /**
+     * Assess gap risk for a portfolio.
+     * Evaluates overnight/weekend gap risk based on ATR and position size.
+     */
+    public function assessGapRisk(string $portfolioId): array
+    {
+        $positions = $this->db->prepare(
+            'SELECT p.instrument_id, p.quantity, p.average_cost
+             FROM portfolio.position p
+             WHERE p.portfolio_id = :pid AND p.status = "OPEN"'
+        );
+        $positions->execute([':pid' => $portfolioId]);
+        $rows = $positions->fetchAll();
+
+        $positionGaps = [];
+        $totalGapRisk = 0;
+        $totalValue = 0;
+
+        foreach ($rows as $pos) {
+            $instrumentId = $pos['instrument_id'];
+            $quantity = (float) $pos['quantity'];
+            $avgCost = (float) $pos['average_cost'];
+            $positionValue = $quantity * $avgCost;
+            $totalValue += $positionValue;
+
+            // Get ATR from OHLCV (proxy: average of high-low range over 14 days)
+            $atrStmt = $this->db->prepare(
+                'SELECT AVG(high - low) AS atr FROM (
+                    SELECT high, low FROM data_ingestion.ohlcv_daily
+                    WHERE instrument_id = :iid
+                    ORDER BY trade_date DESC LIMIT 14
+                ) AS sub'
+            );
+            $atrStmt->execute([':iid' => $instrumentId]);
+            $atr = (float) ($atrStmt->fetchColumn() ?: 0);
+
+            // Gap risk = potential overnight move as % of position value
+            $gapPct = $avgCost > 0 ? ($atr / $avgCost) * 100 : 0;
+            $gapValue = $positionValue * ($gapPct / 100);
+            $totalGapRisk += $gapValue;
+
+            $riskLevel = $gapPct >= 5 ? 'HIGH' : ($gapPct >= 2.5 ? 'MEDIUM' : 'LOW');
+
+            $positionGaps[] = [
+                'instrument_id' => $instrumentId,
+                'quantity' => $quantity,
+                'position_value' => round($positionValue, 2),
+                'atr_14' => round($atr, 4),
+                'gap_risk_pct' => round($gapPct, 2),
+                'gap_risk_value' => round($gapValue, 2),
+                'risk_level' => $riskLevel,
+            ];
+        }
+
+        $portfolioGapPct = $totalValue > 0 ? ($totalGapRisk / $totalValue) * 100 : 0;
+
+        return [
+            'portfolio_id' => $portfolioId,
+            'total_positions' => count($rows),
+            'total_value' => round($totalValue, 2),
+            'total_gap_risk_value' => round($totalGapRisk, 2),
+            'portfolio_gap_risk_pct' => round($portfolioGapPct, 2),
+            'portfolio_risk_level' => $portfolioGapPct >= 5 ? 'HIGH' : ($portfolioGapPct >= 2.5 ? 'MEDIUM' : 'LOW'),
+            'positions' => $positionGaps,
+        ];
     }
 }

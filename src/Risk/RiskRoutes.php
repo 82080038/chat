@@ -53,6 +53,14 @@ final class RiskRoutes
             ['bearer']
         );
         $router->post('/risk-events/{id}/resolve', [self::class, 'resolveRiskEvent'], ['bearer']);
+
+        // Stop Loss & Correlation
+        $router->post('/instruments/{id}/stop-loss', [self::class, 'calculateStopLoss'], ['bearer']);
+        $router->get('/portfolios/{id}/correlation-matrix', [self::class, 'correlationMatrix'], ['bearer']);
+
+        // Liquidity Risk & Gap Risk
+        $router->get('/portfolios/{id}/liquidity-risk', [self::class, 'liquidityRisk'], ['bearer']);
+        $router->get('/portfolios/{id}/gap-risk', [self::class, 'gapRisk'], ['bearer']);
     }
 
     // ─── Risk Profiles ───────────────────────────────────────────────────
@@ -208,6 +216,31 @@ final class RiskRoutes
         );
     }
 
+    // ─── Stop Loss & Correlation ──────────────────────────────────────────
+
+    public static function calculateStopLoss(Request $request): Response
+    {
+        $body = $request->getAllBody();
+        if (!isset($body['entry_price'])) {
+            throw new ApiException(422, 'VALIDATION_ERROR', 'entry_price is required');
+        }
+        $result = self::service()->calculateStopLoss(
+            (string) $request->getParam('id'),
+            (string) ($body['side'] ?? 'BUY'),
+            (float) $body['entry_price'],
+            (string) ($body['method'] ?? 'PERCENTAGE'),
+            (float) ($body['param'] ?? 2.0)
+        );
+        return Response::ok($result);
+    }
+
+    public static function correlationMatrix(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->calculateCorrelationMatrix((string) $request->getParam('id'))
+        );
+    }
+
     // ─── Private Helpers ─────────────────────────────────────────────────
 
     private static function service(): RiskServiceInterface
@@ -237,5 +270,21 @@ final class RiskRoutes
             throw new ApiException(404, $code, $message);
         }
         return $row;
+    }
+
+    // ─── Liquidity Risk & Gap Risk ──────────────────────────────────────
+
+    public static function liquidityRisk(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->assessLiquidityRisk((string) $request->getParam('id'))
+        );
+    }
+
+    public static function gapRisk(Request $request): Response
+    {
+        return Response::ok(
+            self::service()->assessGapRisk((string) $request->getParam('id'))
+        );
     }
 }

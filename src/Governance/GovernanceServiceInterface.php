@@ -26,4 +26,34 @@ interface GovernanceServiceInterface
     public function cancelWorkflow(string $id, string $reason): array;
     public function listWorkflowSteps(string $workflowId): array;
     public function completeWorkflowStep(string $workflowId, string $stepId, array $result): array;
+
+    // Compliance Checks
+    public function checkDuplicateOrder(
+        string $portfolioId,
+        string $instrumentId,
+        string $side,
+        float $quantity,
+        float $price
+    ): array;
+
+    public function checkErroneousOrder(
+        string $portfolioId,
+        string $instrumentId,
+        string $side,
+        float $quantity,
+        float $price
+    ): array;
+
+    public function checkCapitalThreshold(
+        string $portfolioId,
+        float $orderValue
+    ): array;
+
+    public function calculateMinimumCapital(
+        string $portfolioId,
+        string $instrumentId,
+        float $quantity,
+        float $price,
+        string $side = 'BUY'
+    ): array;
 }

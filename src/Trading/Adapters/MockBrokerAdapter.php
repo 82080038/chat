@@ -161,6 +161,28 @@ final class MockBrokerAdapter implements BrokerAdapterInterface
         return $this->orders[$orderId];
     }
 
+    public function modifyOrder(string $orderId, array $modifications): array
+    {
+        $this->ensureAuthenticated();
+
+        if (!isset($this->orders[$orderId])) {
+            throw new ApiException(
+                404,
+                'ORDER_NOT_FOUND',
+                "Order {$orderId} not found"
+            );
+        }
+
+        $allowed = ['quantity', 'price', 'order_type'];
+        foreach ($allowed as $field) {
+            if (array_key_exists($field, $modifications)) {
+                $this->orders[$orderId][$field] = $modifications[$field];
+            }
+        }
+        $this->orders[$orderId]['modified_at'] = date('Y-m-d H:i:s');
+        return $this->orders[$orderId];
+    }
+
     public function cancelOrder(string $orderId): array
     {
         $this->ensureAuthenticated();

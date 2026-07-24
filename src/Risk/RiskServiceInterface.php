@@ -48,4 +48,20 @@ interface RiskServiceInterface
 
     // Utility
     public function checkLimits(string $portfolioId, array $proposedTrade): array;
+
+    // Stop Loss & Correlation
+    public function calculateStopLoss(
+        string $instrumentId,
+        string $side,
+        float $entryPrice,
+        string $method,
+        float $param
+    ): array;
+
+    public function calculateCorrelationMatrix(string $portfolioId): array;
+
+    // Liquidity Risk & Gap Risk
+    public function assessLiquidityRisk(string $portfolioId): array;
+
+    public function assessGapRisk(string $portfolioId): array;
 }

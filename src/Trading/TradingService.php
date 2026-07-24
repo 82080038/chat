@@ -511,6 +511,113 @@ final class TradingService extends BaseService implements TradingServiceInterfac
         return $order;
     }
 
+    public function modifyOrder(string $id, array $data): array
+    {
+        $existing = $this->getOrder($id);
+        if ($existing === null) {
+            throw new ApiException(404, 'ORDER_NOT_FOUND', 'Order was not found');
+        }
+
+        $allowedStatuses = ['SUBMITTED', 'PENDING', 'PARTIALLY_FILLED'];
+        if (!in_array($existing['status'], $allowedStatuses, true)) {
+            throw new ApiException(
+                422,
+                'ORDER_NOT_MODIFIABLE',
+                'Order can only be modified when status is SUBMITTED, PENDING, or PARTIALLY_FILLED'
+            );
+        }
+
+        $updates = [];
+        $params = [':id' => $id, ':now' => $this->now()];
+
+        $modifiableFields = ['quantity', 'limit_price', 'stop_price', 'time_in_force', 'order_type'];
+        foreach ($modifiableFields as $field) {
+            if (array_key_exists($field, $data)) {
+                $updates[] = "{$field} = :{$field}";
+                $params[":{$field}"] = $data[$field];
+            }
+        }
+
+        if ($updates === []) {
+            throw new ApiException(422, 'VALIDATION_ERROR', 'No modifiable fields provided');
+        }
+
+        $updates[] = 'updated_at = :now';
+        $stmt = $this->db->prepare(
+            'UPDATE trading.order SET ' . implode(', ', $updates) . ' WHERE order_id = :id'
+        );
+        $stmt->execute($params);
+
+        $order = $this->getOrder($id);
+        $this->hub()->audit(
+            'ORDER_MODIFIED',
+            'ORDER',
+            $id,
+            $existing,
+            $order
+        );
+
+        // Emit event (fail-safe)
+        \Platform\Core\EventBus\EventBus::getInstance()->emit('trading.order.modified', [
+            'order_id' => $id,
+            'modified_fields' => array_keys($data),
+        ]);
+
+        return $order;
+    }
+
+    public function checkDuplicateOrder(array $orderData): array
+    {
+        $required = ['instrument_id', 'side', 'quantity'];
+        foreach ($required as $field) {
+            if (!array_key_exists($field, $orderData)) {
+                return ['is_duplicate' => false, 'matches' => []];
+            }
+        }
+
+        $windowSeconds = (int) ($orderData['window_seconds'] ?? 60);
+        $cutoff = date('Y-m-d H:i:s', time() - $windowSeconds);
+
+        $where = [
+            'instrument_id = :instrument_id',
+            'side = :side',
+            'quantity = :quantity',
+            'created_at >= :cutoff',
+            'status IN (:s1, :s2, :s3)',
+        ];
+        $params = [
+            ':instrument_id' => $orderData['instrument_id'],
+            ':side' => $orderData['side'],
+            ':quantity' => $orderData['quantity'],
+            ':cutoff' => $cutoff,
+            ':s1' => 'PENDING',
+            ':s2' => 'SUBMITTED',
+            ':s3' => 'PARTIALLY_FILLED',
+        ];
+
+        if (isset($orderData['account_id'])) {
+            $where[] = 'account_id = :account_id';
+            $params[':account_id'] = $orderData['account_id'];
+        }
+        if (isset($orderData['limit_price'])) {
+            $where[] = 'limit_price = :limit_price';
+            $params[':limit_price'] = $orderData['limit_price'];
+        }
+
+        $clause = 'WHERE ' . implode(' AND ', $where);
+        $sql = "SELECT * FROM trading.order {$clause} ORDER BY created_at DESC LIMIT 10";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $matches = $stmt->fetchAll();
+
+        return [
+            'is_duplicate' => count($matches) > 0,
+            'match_count' => count($matches),
+            'matches' => $matches,
+            'window_seconds' => $windowSeconds,
+        ];
+    }
+
     public function getOrderExecutions(string $orderId): array
     {
         $stmt = $this->db->prepare(
