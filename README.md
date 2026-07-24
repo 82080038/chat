@@ -1,6 +1,8 @@
 # Capital Market Platform
 
 > Global & Indonesia Capital Market Intelligence, Decision, Risk & Execution Platform
+>
+> Personal single-owner application. It is not multi-tenant and has no user, role, or permission management.
 
 ## Quick Start
 
@@ -23,6 +25,7 @@ php -S localhost:8000 -t public/
 
 ## Architecture
 
+- **Access model**: One owner account with password + JWT
 - **Backend**: PHP 8.2+ (Modular Monolith)
 - **Database**: MySQL 8+ (transactional) + PostgreSQL/TimescaleDB (time series)
 - **Cache**: Redis
@@ -72,7 +75,7 @@ php -S localhost:8000 -t public/
 ├── tests/
 │   └── Governance/
 │       └── GovernanceServiceTest.php
-├── MASTER_BLUEPRINT.md         # Complete blueprint (475+ sections)
+├── MASTER_BLUEPRINT.md         # Complete blueprint (493 sections)
 └── DEVELOPMENT_ROADMAP.md
 ```
 
@@ -80,7 +83,7 @@ php -S localhost:8000 -t public/
 
 Base URL: `http://localhost:8000/api/v1`
 
-See `api/API_CONTRACT.md` for full specification (164 endpoints across 10 contexts).
+See `api/API_CONTRACT.md` for the owner-only specification (138 endpoints across 10 contexts).
 
 ## Blueprint
 
@@ -91,7 +94,7 @@ See `MASTER_BLUEPRINT.md` for the complete system blueprint including:
 - Domain Model & Bounded Contexts
 - Canonical Data Model
 - Canonical Data Contract (15 items)
-- Logical ERD (10 contexts, 61 tables)
+- Logical ERD corrected for single-owner operation (10 contexts, 55 MySQL tables)
 - Physical SQL Schema (MySQL + PostgreSQL)
-- API Contract (164 endpoints)
+- API Contract (138 owner-authenticated endpoints)
 - Service Boundary Specification

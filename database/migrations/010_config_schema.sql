@@ -2,7 +2,7 @@
 -- 010_config_schema.sql
 -- Bounded Context 10: Configuration & System
 -- Tables: configuration, feature_flag, storage_object, system_parameter,
---         api_access_log, user_activity_log
+--         api_access_log, owner_activity_log
 -- ============================================================================
 
 USE platform;
@@ -12,7 +12,6 @@ USE platform;
 -- ----------------------------------------------------------------------------
 CREATE TABLE config.configuration (
   config_id        VARCHAR(36)   NOT NULL,
-  tenant_id        VARCHAR(36)   NULL,
   config_key       VARCHAR(200)  NOT NULL,
   config_value     TEXT          NULL,
   config_type      ENUM('STRING','INTEGER','DECIMAL','BOOLEAN','JSON','ENCRYPTED') NOT NULL DEFAULT 'STRING',
@@ -23,13 +22,10 @@ CREATE TABLE config.configuration (
   effective_until  TIMESTAMP(6)  NULL,
   status           ENUM('ACTIVE','ARCHIVED') NOT NULL DEFAULT 'ACTIVE',
   version          INT           NOT NULL DEFAULT 1,
-  created_by       VARCHAR(36)   NOT NULL,
   created_at       TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (config_id),
-  UNIQUE KEY uq_cfg_tenant_key_version (tenant_id, config_key, version),
-  KEY idx_cfg_category_status (category, status),
-  CONSTRAINT fk_cfg_tenant FOREIGN KEY (tenant_id) REFERENCES identity.tenant(tenant_id) ON DELETE CASCADE,
-  CONSTRAINT fk_cfg_created_by FOREIGN KEY (created_by) REFERENCES identity.user(user_id) ON DELETE RESTRICT
+  UNIQUE KEY uq_cfg_key_version (config_key, version),
+  KEY idx_cfg_category_status (category, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------------------------
@@ -37,22 +33,17 @@ CREATE TABLE config.configuration (
 -- ----------------------------------------------------------------------------
 CREATE TABLE config.feature_flag (
   flag_id            VARCHAR(36)   NOT NULL,
-  tenant_id          VARCHAR(36)   NULL,
   flag_key           VARCHAR(100)  NOT NULL,
   flag_name          VARCHAR(200)  NOT NULL,
   description        TEXT          NULL,
   enabled            TINYINT(1)    NOT NULL DEFAULT 0,
-  rollout_percentage DECIMAL(5,2)  NOT NULL DEFAULT 0.00,
-  target_users       JSON          NULL,
-  target_tiers       JSON          NULL,
   effective_from     TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   effective_until    TIMESTAMP(6)  NULL,
   status             ENUM('ACTIVE','DISABLED','ARCHIVED') NOT NULL DEFAULT 'ACTIVE',
   created_at         TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (flag_id),
-  UNIQUE KEY uq_ff_tenant_key (tenant_id, flag_key),
-  KEY idx_ff_status_active (status),
-  CONSTRAINT fk_ff_tenant FOREIGN KEY (tenant_id) REFERENCES identity.tenant(tenant_id) ON DELETE CASCADE
+  UNIQUE KEY uq_ff_key (flag_key),
+  KEY idx_ff_status_active (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------------------------
@@ -114,9 +105,6 @@ CREATE TABLE config.system_parameter (
 -- ----------------------------------------------------------------------------
 CREATE TABLE config.api_access_log (
   log_id            VARCHAR(36)   NOT NULL,
-  tenant_id         VARCHAR(36)   NOT NULL,
-  user_id           VARCHAR(36)   NULL,
-  api_client_id     VARCHAR(36)   NULL,
   endpoint          VARCHAR(500)  NOT NULL,
   method            VARCHAR(10)   NOT NULL,
   status_code       INT           NOT NULL,
@@ -129,22 +117,16 @@ CREATE TABLE config.api_access_log (
   created_at        TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   retention_until   DATE          NULL,
   PRIMARY KEY (log_id),
-  KEY idx_aal_tenant_created (tenant_id, created_at),
-  KEY idx_aal_user_created (user_id, created_at),
+  KEY idx_aal_created (created_at),
   KEY idx_aal_endpoint_status (endpoint, status_code),
-  KEY idx_aal_retention (retention_until),
-  CONSTRAINT fk_aal_tenant FOREIGN KEY (tenant_id) REFERENCES identity.tenant(tenant_id) ON DELETE RESTRICT,
-  CONSTRAINT fk_aal_user FOREIGN KEY (user_id) REFERENCES identity.user(user_id) ON DELETE SET NULL,
-  CONSTRAINT fk_aal_api_client FOREIGN KEY (api_client_id) REFERENCES identity.api_client(api_client_id) ON DELETE SET NULL
+  KEY idx_aal_retention (retention_until)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------------------------
--- user_activity_log
+-- owner_activity_log
 -- ----------------------------------------------------------------------------
-CREATE TABLE config.user_activity_log (
+CREATE TABLE config.owner_activity_log (
   activity_id       VARCHAR(36)   NOT NULL,
-  tenant_id         VARCHAR(36)   NOT NULL,
-  user_id           VARCHAR(36)   NOT NULL,
   activity_type     VARCHAR(50)   NOT NULL,
   entity_type       VARCHAR(50)   NULL,
   entity_id         VARCHAR(36)   NULL,
@@ -153,9 +135,7 @@ CREATE TABLE config.user_activity_log (
   created_at        TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   retention_until   DATE          NULL,
   PRIMARY KEY (activity_id),
-  KEY idx_ual_tenant_user_created (tenant_id, user_id, created_at),
-  KEY idx_ual_entity (entity_type, entity_id),
-  KEY idx_ual_retention (retention_until),
-  CONSTRAINT fk_ual_tenant FOREIGN KEY (tenant_id) REFERENCES identity.tenant(tenant_id) ON DELETE RESTRICT,
-  CONSTRAINT fk_ual_user FOREIGN KEY (user_id) REFERENCES identity.user(user_id) ON DELETE RESTRICT
+  KEY idx_oal_created (created_at),
+  KEY idx_oal_entity (entity_type, entity_id),
+  KEY idx_oal_retention (retention_until)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

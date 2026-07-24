@@ -6,14 +6,13 @@
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| GET | `/audit-logs` | List audit logs (admin) | Admin |
-| GET | `/audit-logs/{id}` | Get audit log detail | Admin |
-| GET | `/audit-logs/entity/{entityType}/{entityId}` | Get entity audit trail | Admin |
+| GET | `/audit-logs` | List audit logs | Bearer |
+| GET | `/audit-logs/{id}` | Get audit log detail | Bearer |
+| GET | `/audit-logs/entity/{entityType}/{entityId}` | Get entity audit trail | Bearer |
 
 ```
 Query Parameters:
-  ?filter[actor_type]=USER
-  ?filter[actor_id]={id}
+  ?filter[actor_type]=OWNER
   ?filter[entity_type]=ORDER
   ?filter[entity_id]={id}
   ?filter[from_date]=2026-07-01
@@ -46,7 +45,6 @@ Query Parameters:
   "data": {
     "approval_id": "0192a3b4-...",
     "status": "APPROVED",
-    "approved_by": "0192a3b5-...",
     "approved_at": "2026-07-24T07:00:00.000000Z"
   }
 }
@@ -68,9 +66,9 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/policies` | List policies | Bearer |
-| POST | `/policies` | Create policy | Admin |
+| POST | `/policies` | Create policy | Bearer |
 | GET | `/policies/{id}` | Get policy with rules | Bearer |
-| PUT | `/policies/{id}` | Update policy (creates new version) | Admin |
+| PUT | `/policies/{id}` | Update policy (creates new version) | Bearer |
 | GET | `/policies/{id}/evaluations` | List policy evaluations | Bearer |
 | POST | `/policies/{id}/evaluate` | Evaluate policy against entity | Bearer |
 
@@ -111,9 +109,9 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/configurations` | List configurations | Bearer |
-| POST | `/configurations` | Create configuration | Admin |
+| POST | `/configurations` | Create configuration | Bearer |
 | GET | `/configurations/{id}` | Get configuration | Bearer |
-| PUT | `/configurations/{id}` | Update configuration (new version) | Admin |
+| PUT | `/configurations/{id}` | Update configuration (new version) | Bearer |
 | GET | `/configurations/key/{key}` | Get config by key | Bearer |
 
 ### Feature Flags
@@ -121,9 +119,9 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/feature-flags` | List feature flags | Bearer |
-| POST | `/feature-flags` | Create feature flag | Admin |
+| POST | `/feature-flags` | Create feature flag | Bearer |
 | GET | `/feature-flags/{id}` | Get feature flag | Bearer |
-| PUT | `/feature-flags/{id}` | Update feature flag | Admin |
+| PUT | `/feature-flags/{id}` | Update feature flag | Bearer |
 | GET | `/feature-flags/key/{key}` | Check flag by key | Bearer |
 
 ### System Parameters
@@ -132,7 +130,7 @@ Query Parameters:
 |--------|------|-------------|------|
 | GET | `/system-parameters` | List system parameters | Bearer |
 | GET | `/system-parameters/{key}` | Get parameter by key | Bearer |
-| PUT | `/system-parameters/{key}` | Update parameter (if not readonly) | Admin |
+| PUT | `/system-parameters/{key}` | Update parameter (if not readonly) | Bearer |
 
 ### Storage Objects
 
@@ -140,21 +138,20 @@ Query Parameters:
 |--------|------|-------------|------|
 | GET | `/storage-objects` | List storage objects | Bearer |
 | GET | `/storage-objects/{id}` | Get storage object metadata | Bearer |
-| POST | `/storage-objects` | Register storage object | Admin |
-| DELETE | `/storage-objects/{id}` | Soft delete storage object | Admin |
+| POST | `/storage-objects` | Register storage object | Bearer |
+| DELETE | `/storage-objects/{id}` | Soft delete storage object | Bearer |
 
 ### API Access Logs
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| GET | `/api-access-logs` | List API access logs | Admin |
+| GET | `/api-access-logs` | List API access logs | Bearer |
 
-### User Activity Logs
+### Owner Activity Logs
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| GET | `/user-activity-logs` | List user activity logs | Admin/Bearer |
-| GET | `/users/{id}/activity-logs` | Get user's activity | Bearer/Self |
+| GET | `/owner-activity-logs` | List owner activity logs | Bearer |
 
 ---
 
@@ -198,11 +195,7 @@ Query Parameters:
 
 | Context | Endpoints |
 |---------|-----------|
-| Identity (Auth) | 8 |
-| Identity (Tenants) | 5 |
-| Identity (Users) | 7 |
-| Identity (Roles) | 8 |
-| Identity (API Clients) | 5 |
+| Single-Owner Identity | 8 |
 | Market Master | 20 |
 | Fundamental | 10 |
 | Analytics | 18 |
@@ -211,26 +204,25 @@ Query Parameters:
 | Trading | 16 |
 | Settlement | 7 |
 | Governance | 14 |
-| Config | 14 |
+| Config | 13 |
 | Cross-Cutting | 4 |
-| **Total** | **164** |
+| **Total** | **138** |
 
 ### HTTP Method Distribution
 
 | Method | Count |
 |--------|-------|
-| GET | 105 |
-| POST | 38 |
-| PUT | 13 |
-| DELETE | 8 |
-| **Total** | **164** |
+| GET | 94 |
+| POST | 30 |
+| PUT | 11 |
+| DELETE | 3 |
+| **Total** | **138** |
 
 ### Auth Requirement Distribution
 
 | Auth Level | Endpoints |
 |------------|-----------|
-| Public | 12 |
-| Bearer | 118 |
-| Admin | 30 |
+| Public/First-run | 2 |
+| Bearer | 133 |
+| Public health/info | 3 |
 | Internal | 1 |
-| Bearer/Self | 3 |

@@ -29,7 +29,7 @@ CREATE SCHEMA IF NOT EXISTS meta;
 -- ============================================================================
 
 CREATE TABLE meta.data_source (
-  source_id       UUID          PRIMARY KEY DEFAULT uuid_generate_v7(),
+  source_id       UUID          PRIMARY KEY,
   source_name     VARCHAR(100)  NOT NULL UNIQUE,
   source_type     VARCHAR(50)   NOT NULL,
   endpoint_url    VARCHAR(500)  NULL,
@@ -40,7 +40,7 @@ CREATE TABLE meta.data_source (
 );
 
 CREATE TABLE meta.ingestion_log (
-  log_id          UUID          PRIMARY KEY DEFAULT uuid_generate_v7(),
+  log_id          UUID          PRIMARY KEY,
   source_id       UUID          NOT NULL REFERENCES meta.data_source(source_id),
   schema_name     VARCHAR(50)   NOT NULL,
   table_name      VARCHAR(100)  NOT NULL,

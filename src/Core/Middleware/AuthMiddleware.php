@@ -23,23 +23,13 @@ final class AuthMiddleware
         try {
             $secret = Application::getInstance()->getConfig('JWT_SECRET', 'change-me');
             $decoded = JWT::decode($token, new Key($secret, 'HS256'));
-            $request->setUserId($decoded->user_id ?? null);
-            $request->setTenantId($decoded->tenant_id ?? null);
-            $request->setUserPermissions($decoded->permissions ?? []);
+            $ownerId = $decoded->owner_id ?? null;
+            if (!is_string($ownerId) || $ownerId === '') {
+                return Response::error(401, 'INVALID_TOKEN', 'Token does not identify the owner');
+            }
+            $request->setOwnerId($ownerId);
         } catch (\Exception $e) {
             return Response::error(401, 'INVALID_TOKEN', 'Invalid or expired token');
-        }
-        return null;
-    }
-
-    public static function admin(Request $request): ?Response
-    {
-        $result = self::bearer($request);
-        if ($result !== null) {
-            return $result;
-        }
-        if (!$request->hasPermission('admin.full')) {
-            return Response::error(403, 'FORBIDDEN', 'Admin access required');
         }
         return null;
     }

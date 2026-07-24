@@ -11380,6 +11380,253 @@ Implementation Phase 1: Identity + Config     ← NEXT
 
 > Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
 > Semua informasi telah disimpan tanpa pengurangan.
-> Update: 24 Juli 2026 — Bagian 1-475 + Bagian 476-485 (API Contract + Service Boundary + Implementation Phase 0)
+> Update: 24 Juli 2026 — Bagian 1-485 + Bagian 486-493 (Architecture Correction: Single-Owner Personal Application)
+
+---
+
+## 486. Architecture Correction Record — Single-Owner Personal Application
+
+### Authoritative Decision
+
+> **Aplikasi ini adalah aplikasi pribadi untuk satu pemilik. Aplikasi bukan SaaS, bukan multi-tenant, dan bukan platform multi-user.**
+
+Keputusan ini **menggantikan dan membatalkan** seluruh asumsi terdahulu mengenai:
+
+- tenant dan tenant isolation;
+- registrasi banyak pengguna;
+- role-based access control (RBAC);
+- role, permission, user_role, dan role_permission;
+- admin versus user authorization;
+- service account atau API client per tenant;
+- `X-Tenant-ID` pada REST API;
+- tenant-scoped configuration, portfolio, log, dan event;
+- assignment workflow kepada user atau role tertentu.
+
+Bagian lama yang membahas multi-tenant tetap disimpan sebagai riwayat proses desain, tetapi **tidak boleh digunakan sebagai dasar implementasi**. Bagian 486-493 adalah sumber kebenaran terbaru jika terjadi kontradiksi.
+
+---
+
+## 487. Final Access Model — One Owner + JWT
+
+### Identity Model
+
+```
+owner_account
+  ├── exactly one row (enforced by singleton_key = 1)
+  ├── email + password_hash
+  ├── profile fields
+  ├── ACTIVE / LOCKED status
+  └── last_login_at
+
+owner_preference
+  ├── one-to-one with owner_account
+  ├── timezone
+  ├── language
+  ├── base_currency
+  ├── default_exchange
+  └── theme
+```
+
+### Authentication Rules
+
+1. `POST /auth/setup` hanya dapat dipanggil jika belum ada owner.
+2. Setup kedua wajib ditolak dengan HTTP `409 Conflict`.
+3. Login menghasilkan JWT dengan claim `owner_id`.
+4. Semua endpoint privat menggunakan Bearer JWT.
+5. Tidak ada role, permission, scope, atau admin guard.
+6. Semua token valid memiliki akses penuh sebagai owner.
+7. Akun owner dapat berstatus `LOCKED` untuk emergency access shutdown.
+8. Password disimpan dengan `password_hash()` dan diverifikasi dengan `password_verify()`.
+
+---
+
+## 488. Corrected Physical Data Model
+
+### MySQL Table Count
+
+| Context | Old | New | Correction |
+|---------|-----|-----|------------|
+| Identity | 8 | 2 | Replace tenant/user/RBAC/API client with owner_account + owner_preference |
+| Market Master | 9 | 9 | No change |
+| Fundamental | 6 | 6 | No change |
+| Analytics | 8 | 8 | No change |
+| Portfolio | 7 | 7 | Remove tenant_id and owner_id from portfolio |
+| Risk | 4 | 4 | Remove tenant_id and resolved_by |
+| Trading | 5 | 5 | Remove override_by and approved_by |
+| Settlement | 2 | 2 | Remove resolved_by |
+| Governance | 6 | 6 | Remove tenant/user assignment columns |
+| Config | 6 | 6 | Global config; rename user_activity_log to owner_activity_log |
+| **Total** | **61** | **55** | **6 obsolete identity tables removed** |
+
+### Removed Tables
+
+```
+identity.tenant
+identity.user
+identity.role
+identity.permission
+identity.user_role
+identity.role_permission
+identity.api_client
+```
+
+Tujuh tabel lama digantikan oleh dua tabel baru, sehingga net reduction adalah enam tabel.
+
+### Removed Repeated Ownership Columns
+
+```
+tenant_id       — removed globally
+portfolio.owner_id
+risk_event.resolved_by
+trading.decision.override_by
+trading.order_intent.approved_by
+settlement.reconciliation.resolved_by
+governance requested_by / approved_by / rejected_by / initiated_by / assigned_to / assigned_role
+governance policy.created_by / policy_evaluation.evaluated_by
+config configuration.created_by
+config api_access_log.user_id / api_client_id
+```
+
+Data business tidak memerlukan owner FK pada setiap row karena seluruh database adalah milik satu owner.
+
+---
+
+## 489. Corrected API Contract
+
+### Endpoint Count
+
+| Item | Old | New |
+|------|-----|-----|
+| Total endpoints | 164 | 138 |
+| Identity endpoints | 33 | 8 |
+| Config endpoints | 14 | 13 |
+| Tenant endpoints | 5 | 0 |
+| User management endpoints | 7 | 0 |
+| Role/permission endpoints | 8 | 0 |
+| API client endpoints | 5 | 0 |
+
+### Owner Identity Endpoints
+
+```
+POST /auth/setup
+POST /auth/login
+POST /auth/refresh
+POST /auth/logout
+GET  /auth/me
+POST /auth/change-password
+GET  /auth/preferences
+PUT  /auth/preferences
+```
+
+### Removed API Concepts
+
+```
+X-Tenant-ID
+/api/v1/tenants/*
+/api/v1/users/*
+/api/v1/roles/*
+/api/v1/permissions/*
+/api/v1/api-clients/*
+Admin auth level
+Bearer/Self auth level
+permission claims in JWT
+```
+
+---
+
+## 490. Corrected Governance Semantics
+
+Governance tetap diperlukan meskipun hanya satu owner, tetapi maknanya berubah:
+
+| Old Concept | Single-Owner Meaning |
+|-------------|----------------------|
+| Approval | Explicit owner confirmation before a high-risk action |
+| Workflow assignment | Deterministic system workflow without user assignment |
+| Human override | Owner override with mandatory reason |
+| Audit actor | `OWNER`, `SYSTEM`, atau `BROKER` |
+| Policy creation | Owner creates and versions personal risk/trading policy |
+| Reconciliation resolution | Owner resolves discrepancy; actor implicit from authenticated session |
+
+Approval tidak lagi berarti seseorang menyetujui permintaan orang lain. Approval adalah **safety interlock** untuk mencegah eksekusi tidak sengaja.
+
+---
+
+## 491. Corrected Service Boundaries
+
+### IdentityService
+
+```
+setupOwner(array $data)
+authenticate(string $email, string $password)
+verifyToken(string $jwt)
+getOwner()
+updatePreferences(array $data)
+changePassword(string $currentPassword, string $newPassword)
+```
+
+### Services No Longer Depend on Identity for Ownership
+
+- PortfolioService tidak membutuhkan tenant/user lookup.
+- RiskService tidak membutuhkan tenant lookup.
+- TradingService tidak membutuhkan user lookup untuk override.
+- SettlementService tidak membutuhkan user lookup untuk reconciliation.
+- GovernanceService hanya membutuhkan authenticated owner context.
+- ConfigService menggunakan global personal configuration.
+
+Identity tetap menjadi root authentication boundary, tetapi bukan domain multi-user.
+
+---
+
+## 492. Corrected Redis, Events, and Storage
+
+### Redis Keys
+
+```
+cache:owner:profile
+cache:config:{key}
+cache:feature_flag:{key}
+session:{token}
+cache:instrument:{id}
+cache:portfolio:{id}:summary
+lock:order:{orderId}
+```
+
+### Event Contract
+
+Field `tenant_id` dihapus dari semua event. Event envelope final:
+
+```json
+{
+  "event_id": "uuid-v7",
+  "event_type": "trading.order.submitted",
+  "event_version": 1,
+  "source": "trading-service",
+  "timestamp": "2026-07-24T06:00:00.000000Z",
+  "correlation_id": "uuid-v7",
+  "data": {}
+}
+```
+
+### Object Storage
+
+Semua bucket bersifat pribadi. Istilah `user exports` diganti menjadi `owner exports`. Tidak ada prefix tenant.
+
+---
+
+## 493. Single-Owner Correction — Final Statement
+
+> **Access model locked: one owner account with password + JWT.**
 >
-> TOTAL: 485 BAGIAN
+> **No tenants. No additional users. No RBAC. No roles. No permissions. No tenant header. No tenant-scoped records.**
+>
+> **MySQL physical model corrected from 61 to 55 tables. REST API corrected from 164 to 138 endpoints. Governance retained as owner safety controls and auditability.**
+>
+> **All future implementation must follow sections 486-493 when older sections conflict.**
+
+---
+
+> Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
+> Semua informasi telah disimpan tanpa pengurangan.
+> Update: 24 Juli 2026 — Bagian 1-485 + Bagian 486-493 (Architecture Correction: Single-Owner Personal Application)
+>
+> TOTAL: 493 BAGIAN

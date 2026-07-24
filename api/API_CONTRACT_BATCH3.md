@@ -6,7 +6,7 @@
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| GET | `/portfolios` | List portfolios (tenant-scoped) | Bearer |
+| GET | `/portfolios` | List the owner's portfolios | Bearer |
 | POST | `/portfolios` | Create portfolio | Bearer |
 | GET | `/portfolios/{id}` | Get portfolio with summary | Bearer |
 | PUT | `/portfolios/{id}` | Update portfolio | Bearer |

@@ -13,9 +13,7 @@ final class Request
     private array $headers = [];
     private array $query = [];
     private array $body = [];
-    private ?string $tenantId = null;
-    private ?string $userId = null;
-    private ?array $userPermissions = null;
+    private ?string $ownerId = null;
 
     public function __construct()
     {
@@ -81,38 +79,13 @@ final class Request
         return $this->body;
     }
 
-    public function getTenantId(): ?string
+    public function getOwnerId(): ?string
     {
-        return $this->tenantId ?? $this->getHeader('x-tenant-id');
+        return $this->ownerId;
     }
 
-    public function setTenantId(?string $tenantId): void
+    public function setOwnerId(?string $ownerId): void
     {
-        $this->tenantId = $tenantId;
-    }
-
-    public function getUserId(): ?string
-    {
-        return $this->userId;
-    }
-
-    public function setUserId(?string $userId): void
-    {
-        $this->userId = $userId;
-    }
-
-    public function getUserPermissions(): ?array
-    {
-        return $this->userPermissions;
-    }
-
-    public function setUserPermissions(?array $permissions): void
-    {
-        $this->userPermissions = $permissions;
-    }
-
-    public function hasPermission(string $permission): bool
-    {
-        return $this->userPermissions !== null && in_array($permission, $this->userPermissions, true);
+        $this->ownerId = $ownerId;
     }
 }

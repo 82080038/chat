@@ -11,8 +11,10 @@ final class GovernanceServiceTest extends TestCase
 {
     public function testServiceImplementsInterface(): void
     {
-        $service = new GovernanceService();
-        $this->assertInstanceOf(\Platform\Governance\GovernanceServiceInterface::class, $service);
+        $this->assertTrue(is_subclass_of(
+            GovernanceService::class,
+            \Platform\Governance\GovernanceServiceInterface::class
+        ));
     }
 
     public function testUuidGeneration(): void
@@ -20,7 +22,7 @@ final class GovernanceServiceTest extends TestCase
         $reflection = new \ReflectionClass(GovernanceService::class);
         $method = $reflection->getMethod('uuid');
         $method->setAccessible(true);
-        $uuid = $method->invoke(new GovernanceService());
+        $uuid = $method->invoke($reflection->newInstanceWithoutConstructor());
         $this->assertNotEmpty($uuid);
         $this->assertEquals(36, strlen($uuid));
     }

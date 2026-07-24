@@ -14,8 +14,6 @@ USE platform;
 -- ----------------------------------------------------------------------------
 CREATE TABLE portfolio.portfolio (
   portfolio_id     VARCHAR(36)   NOT NULL,
-  tenant_id        VARCHAR(36)   NOT NULL,
-  owner_id         VARCHAR(36)   NOT NULL,
   name             VARCHAR(200)  NOT NULL,
   description      TEXT          NULL,
   base_currency    CHAR(3)       NOT NULL DEFAULT 'IDR',
@@ -27,11 +25,8 @@ CREATE TABLE portfolio.portfolio (
   created_at       TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at       TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (portfolio_id),
-  UNIQUE KEY uq_port_tenant_name (tenant_id, name),
+  UNIQUE KEY uq_port_name (name),
   KEY idx_port_type_status (portfolio_type, status),
-  KEY idx_port_tenant_owner_status (tenant_id, owner_id, status),
-  CONSTRAINT fk_port_tenant FOREIGN KEY (tenant_id) REFERENCES identity.tenant(tenant_id) ON DELETE RESTRICT,
-  CONSTRAINT fk_port_owner FOREIGN KEY (owner_id) REFERENCES identity.user(user_id) ON DELETE RESTRICT,
   CONSTRAINT fk_port_benchmark FOREIGN KEY (benchmark_id) REFERENCES market_master.index_master(index_id) ON DELETE SET NULL,
   CONSTRAINT fk_port_risk_profile FOREIGN KEY (risk_profile_id) REFERENCES risk.risk_profile(risk_profile_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

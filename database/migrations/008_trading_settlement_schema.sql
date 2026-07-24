@@ -45,7 +45,6 @@ CREATE TABLE trading.decision (
   policy_result       ENUM('APPROVED','REJECTED','MODIFIED','MANUAL_OVERRIDE') NOT NULL DEFAULT 'APPROVED',
   policy_checks       JSON          NULL,
   human_override      TINYINT(1)    NOT NULL DEFAULT 0,
-  override_by         VARCHAR(36)   NULL,
   override_reason     TEXT          NULL,
   created_at          TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   status              ENUM('PENDING','APPROVED','REJECTED','EXECUTED','EXPIRED') NOT NULL DEFAULT 'PENDING',
@@ -56,8 +55,7 @@ CREATE TABLE trading.decision (
   CONSTRAINT fk_dec_portfolio FOREIGN KEY (portfolio_id) REFERENCES portfolio.portfolio(portfolio_id) ON DELETE RESTRICT,
   CONSTRAINT fk_dec_instrument FOREIGN KEY (instrument_id) REFERENCES market_master.instrument(instrument_id) ON DELETE RESTRICT,
   CONSTRAINT fk_dec_recommendation FOREIGN KEY (recommendation_id) REFERENCES analytics.recommendation(recommendation_id) ON DELETE SET NULL,
-  CONSTRAINT fk_dec_risk_assessment FOREIGN KEY (risk_assessment_id) REFERENCES risk.risk_assessment(risk_assessment_id) ON DELETE SET NULL,
-  CONSTRAINT fk_dec_override_by FOREIGN KEY (override_by) REFERENCES identity.user(user_id) ON DELETE SET NULL
+  CONSTRAINT fk_dec_risk_assessment FOREIGN KEY (risk_assessment_id) REFERENCES risk.risk_assessment(risk_assessment_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------------------------
@@ -74,7 +72,6 @@ CREATE TABLE trading.order_intent (
   strategy         VARCHAR(50)   NULL,
   reason           VARCHAR(500)  NULL,
   status           ENUM('DRAFT','APPROVED','REJECTED','EXPIRED','CONVERTED') NOT NULL DEFAULT 'DRAFT',
-  approved_by      VARCHAR(36)   NULL,
   approved_at      TIMESTAMP(6)  NULL,
   created_at       TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   expires_at       TIMESTAMP(6)  NULL,
@@ -83,8 +80,7 @@ CREATE TABLE trading.order_intent (
   KEY idx_oi_portfolio_status (portfolio_id, status),
   CONSTRAINT fk_oi_decision FOREIGN KEY (decision_id) REFERENCES trading.decision(decision_id) ON DELETE CASCADE,
   CONSTRAINT fk_oi_portfolio FOREIGN KEY (portfolio_id) REFERENCES portfolio.portfolio(portfolio_id) ON DELETE RESTRICT,
-  CONSTRAINT fk_oi_instrument FOREIGN KEY (instrument_id) REFERENCES market_master.instrument(instrument_id) ON DELETE RESTRICT,
-  CONSTRAINT fk_oi_approved_by FOREIGN KEY (approved_by) REFERENCES identity.user(user_id) ON DELETE SET NULL
+  CONSTRAINT fk_oi_instrument FOREIGN KEY (instrument_id) REFERENCES market_master.instrument(instrument_id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------------------------
@@ -205,17 +201,11 @@ CREATE TABLE settlement.reconciliation (
   detected_at          TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   resolved_at          TIMESTAMP(6)  NULL,
   resolution           TEXT          NULL,
-  resolved_by          VARCHAR(36)   NULL,
   created_at           TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (reconciliation_id),
   UNIQUE KEY uq_recon_portfolio_type_date_record (portfolio_id, reconciliation_type, reconciliation_date, internal_record_id),
   KEY idx_recon_portfolio_date (portfolio_id, reconciliation_date),
   KEY idx_recon_status_open (status),
   KEY idx_recon_type_date (reconciliation_type, reconciliation_date),
-  CONSTRAINT fk_recon_portfolio FOREIGN KEY (portfolio_id) REFERENCES portfolio.portfolio(portfolio_id) ON DELETE CASCADE,
-  CONSTRAINT fk_recon_resolved_by FOREIGN KEY (resolved_by) REFERENCES identity.user(user_id) ON DELETE SET NULL
+  CONSTRAINT fk_recon_portfolio FOREIGN KEY (portfolio_id) REFERENCES portfolio.portfolio(portfolio_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Add deferred FK: risk_event.resolved_by → user
-ALTER TABLE risk.risk_event
-  ADD CONSTRAINT fk_re_resolved_by FOREIGN KEY (resolved_by) REFERENCES identity.user(user_id) ON DELETE SET NULL;

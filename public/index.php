@@ -22,7 +22,6 @@ $router = new Router();
 
 // Register middleware
 $router->addMiddleware('bearer', [AuthMiddleware::class, 'bearer']);
-$router->addMiddleware('admin', [AuthMiddleware::class, 'admin']);
 $router->addMiddleware('public', [AuthMiddleware::class, 'public']);
 
 // Health endpoints

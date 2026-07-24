@@ -7,9 +7,9 @@
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/brokers` | List brokers | Bearer |
-| POST | `/brokers` | Register broker | Admin |
+| POST | `/brokers` | Register broker | Bearer |
 | GET | `/brokers/{id}` | Get broker | Bearer |
-| PUT | `/brokers/{id}` | Update broker | Admin |
+| PUT | `/brokers/{id}` | Update broker | Bearer |
 
 ### Decisions
 
@@ -71,7 +71,6 @@
   "data": {
     "decision_id": "0192a3b7-...",
     "human_override": true,
-    "override_by": "0192a3b8-...",
     "status": "APPROVED",
     "updated_at": "2026-07-24T06:05:00.000000Z"
   }

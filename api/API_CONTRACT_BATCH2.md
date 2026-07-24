@@ -7,11 +7,11 @@
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/financial-statements` | List financial statements | Bearer |
-| POST | `/financial-statements` | Create financial statement | Admin |
+| POST | `/financial-statements` | Create financial statement | Bearer |
 | GET | `/financial-statements/{id}` | Get statement with lines | Bearer |
 | GET | `/financial-statements/{id}/lines` | Get statement line items | Bearer |
 | GET | `/financial-statements/{id}/revisions` | Get revision history | Bearer |
-| POST | `/financial-statements/{id}/revise` | Create revised version | Admin |
+| POST | `/financial-statements/{id}/revise` | Create revised version | Bearer |
 
 #### GET /financial-statements
 
@@ -116,10 +116,10 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/features` | List feature definitions | Bearer |
-| POST | `/features` | Create feature definition | Admin |
+| POST | `/features` | Create feature definition | Bearer |
 | GET | `/features/{id}` | Get feature definition | Bearer |
 | GET | `/features/{id}/values` | Get feature values (time series) | Bearer |
-| POST | `/features/{id}/values` | Ingest feature values | Admin |
+| POST | `/features/{id}/values` | Ingest feature values | Bearer |
 
 #### GET /features/{id}/values
 
@@ -248,9 +248,9 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/models` | List model registry entries | Bearer |
-| POST | `/models` | Register new model | Admin |
+| POST | `/models` | Register new model | Bearer |
 | GET | `/models/{id}` | Get model details | Bearer |
-| PUT | `/models/{id}` | Update model (e.g., deploy/retire) | Admin |
+| PUT | `/models/{id}` | Update model (e.g., deploy/retire) | Bearer |
 
 ### Backtests
 

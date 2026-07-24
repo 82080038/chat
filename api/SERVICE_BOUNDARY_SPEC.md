@@ -74,30 +74,28 @@ interface XxxServiceInterface
 
 ```
 Responsibility:
-  - User registration, authentication, JWT issuance
-  - Tenant management
-  - Role & permission management
-  - API client management
-  - User preferences
+  - One-time owner account setup
+  - Owner authentication and JWT issuance
+  - Password change and account lock handling
+  - Owner preferences
 
 Database: MySQL (identity schema)
 
 Dependencies: None (root service)
 
 Events Published:
-  - user.registered
-  - user.login
-  - user.suspended
-  - tenant.created
-  - role.assigned
+  - owner.created
+  - owner.login
+  - owner.password_changed
+  - owner.account_locked
 
 Internal Interface:
   IdentityServiceInterface
-    - authenticate(string $email, string $password, string $tenantSlug): array
+    - setupOwner(array $data): array
+    - authenticate(string $email, string $password): array
     - verifyToken(string $jwt): array
-    - hasPermission(string $userId, string $permission): bool
-    - getUserTenant(string $userId): ?array
-    - getTenantById(string $tenantId): ?array
+    - getOwner(): ?array
+    - updatePreferences(array $data): array
 ```
 
 ### 3.2 MarketMasterService
@@ -228,7 +226,6 @@ Responsibility:
 Database: MySQL (portfolio schema)
 
 Dependencies:
-  - IdentityService (tenant, user)
   - MarketMasterService (instrument, benchmark)
   - RiskService (risk_profile)
   - TradingService (broker via account, execution via cash_transaction)
@@ -269,7 +266,6 @@ Responsibility:
 Database: MySQL (risk schema)
 
 Dependencies:
-  - IdentityService (tenant)
   - PortfolioService (portfolio, positions)
 
 Events Published:
@@ -310,8 +306,7 @@ Dependencies:
   - MarketMasterService (instrument)
   - AnalyticsService (recommendation)
   - RiskService (risk_assessment)
-  - IdentityService (user for override)
-  - GovernanceService (policy evaluation, approval)
+  - GovernanceService (policy evaluation, owner confirmation)
 
 Events Published:
   - decision.created
@@ -356,7 +351,6 @@ Dependencies:
   - TradingService (execution)
   - PortfolioService (portfolio, position, cash)
   - MarketMasterService (instrument)
-  - IdentityService (user for reconciliation resolution)
 
 Events Published:
   - settlement.created
@@ -391,7 +385,7 @@ Responsibility:
 Database: MySQL (governance schema)
 
 Dependencies:
-  - IdentityService (tenant, user)
+  - IdentityService (authenticated owner context)
 
 Events Published:
   - audit.logged
@@ -412,30 +406,30 @@ Events Consumed:
 Internal Interface:
   GovernanceServiceInterface
     - auditLog(array $data): void
-    - requestApproval(string $entityType, string $entityId, string $approvalType, string $requestedBy): array
-    - approve(string $approvalId, string $approvedBy): array
-    - reject(string $approvalId, string $rejectedBy, string $reason): array
+    - requestApproval(string $entityType, string $entityId, string $approvalType): array
+    - approve(string $approvalId): array
+    - reject(string $approvalId, string $reason): array
     - evaluatePolicy(string $policyId, string $entityType, string $entityId): array
-    - evaluateAllPolicies(string $entityType, string $entityId, string $tenantId): array
-    - startWorkflow(string $type, string $entityType, string $entityId, string $initiatedBy): array
+    - evaluateAllPolicies(string $entityType, string $entityId): array
+    - startWorkflow(string $type, string $entityType, string $entityId): array
 ```
 
 ### 3.10 ConfigService
 
 ```
 Responsibility:
-  - Configuration management (tenant & global)
-  - Feature flag management
+  - Global personal configuration management
+  - Boolean feature flag management
   - Storage object metadata
   - System parameters
   - API access logging
-  - User activity logging
+  - Owner activity logging
 
 Database: MySQL (config schema)
 Object Storage: S3 (actual file storage)
 
 Dependencies:
-  - IdentityService (tenant, user, api_client)
+  - IdentityService (authenticated owner context)
 
 Events Published:
   - configuration.changed
@@ -447,14 +441,14 @@ Events Consumed:
 
 Internal Interface:
   ConfigServiceInterface
-    - getConfig(string $key, ?string $tenantId): ?array
-    - setConfig(string $key, string $value, ?string $tenantId): array
-    - isFeatureEnabled(string $flagKey, ?string $tenantId, ?string $userId): bool
+    - getConfig(string $key): ?array
+    - setConfig(string $key, string $value): array
+    - isFeatureEnabled(string $flagKey): bool
     - registerStorageObject(array $data): array
     - getStorageObject(string $id): ?array
     - getSystemParameter(string $key): ?array
     - logApiAccess(array $data): void
-    - logUserActivity(array $data): void
+    - logOwnerActivity(array $data): void
 ```
 
 ---
@@ -472,7 +466,7 @@ AnalyticsService
       → decision.created
       → GovernanceService.requestApproval() (if required)
         → approval.requested
-        → (user approves via API)
+        → (owner confirms via API)
         → approval.approved
       → decision.approved
       → TradingService.createOrderIntent()
@@ -610,9 +604,9 @@ Namespaces:
   - cache:instrument:{id} — instrument lookup (TTL: 1h)
   - cache:listing:ticker:{exchange}:{ticker} — ticker lookup (TTL: 1h)
   - cache:portfolio:{id}:summary — portfolio summary (TTL: 5m)
-  - cache:user:{id}:permissions — user permissions (TTL: 15m)
-  - cache:config:{tenant}:{key} — configuration (TTL: 5m)
-  - cache:feature_flag:{tenant}:{key} — feature flags (TTL: 1m)
+  - cache:owner:profile — owner profile (TTL: 15m)
+  - cache:config:{key} — configuration (TTL: 5m)
+  - cache:feature_flag:{key} — feature flags (TTL: 1m)
   - session:{token} — JWT session (TTL: 1h)
   - lock:order:{orderId} — order processing lock (TTL: 30s)
 ```
@@ -623,7 +617,7 @@ Namespaces:
 Buckets:
   - platform-raw-documents (financial statement PDFs, news articles)
   - platform-artifacts (model weights, backtest results)
-  - platform-exports (user data exports, reports)
+  - platform-exports (owner data exports, reports)
   - platform-backups (database backup snapshots)
 
 Lifecycle:

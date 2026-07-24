@@ -11,18 +11,16 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
     public function auditLog(array $data): void
     {
         $sql = 'INSERT INTO governance.audit_log
-            (audit_log_id, tenant_id, actor_type, actor_id, action, entity_type, entity_id,
+            (audit_log_id, actor_type, action, entity_type, entity_id,
              old_values, new_values, ip_address, user_agent, correlation_id, created_at)
             VALUES
-            (:id, :tenant_id, :actor_type, :actor_id, :action, :entity_type, :entity_id,
+            (:id, :actor_type, :action, :entity_type, :entity_id,
              :old_values, :new_values, :ip_address, :user_agent, :correlation_id, :created_at)';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             ':id' => $this->uuid(),
-            ':tenant_id' => $data['tenant_id'],
             ':actor_type' => $data['actor_type'],
-            ':actor_id' => $data['actor_id'] ?? null,
             ':action' => $data['action'],
             ':entity_type' => $data['entity_type'] ?? null,
             ':entity_id' => $data['entity_id'] ?? null,
@@ -38,26 +36,20 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
     public function requestApproval(
         string $entityType,
         string $entityId,
-        string $approvalType,
-        string $requestedBy,
-        ?string $tenantId = null
+        string $approvalType
     ): array {
         $id = $this->uuid();
         $sql = 'INSERT INTO governance.approval
-            (approval_id, tenant_id, entity_type, entity_id, approval_type,
-             requested_by, requested_at, status, created_at)
+            (approval_id, entity_type, entity_id, approval_type, requested_at, status, created_at)
             VALUES
-            (:id, :tenant_id, :entity_type, :entity_id, :approval_type,
-             :requested_by, :requested_at, :status, :created_at)';
+            (:id, :entity_type, :entity_id, :approval_type, :requested_at, :status, :created_at)';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             ':id' => $id,
-            ':tenant_id' => $tenantId,
             ':entity_type' => $entityType,
             ':entity_id' => $entityId,
             ':approval_type' => $approvalType,
-            ':requested_by' => $requestedBy,
             ':requested_at' => $this->now(),
             ':status' => 'PENDING',
             ':created_at' => $this->now(),
@@ -66,16 +58,15 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
         return $this->getApproval($id);
     }
 
-    public function approve(string $approvalId, string $approvedBy): array
+    public function approve(string $approvalId): array
     {
         $sql = 'UPDATE governance.approval
-            SET status = :status, approved_by = :approved_by, approved_at = :approved_at
+            SET status = :status, approved_at = :approved_at
             WHERE approval_id = :id AND status = :pending_status';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             ':status' => 'APPROVED',
-            ':approved_by' => $approvedBy,
             ':approved_at' => $this->now(),
             ':id' => $approvalId,
             ':pending_status' => 'PENDING',
@@ -88,17 +79,15 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
         return $this->getApproval($approvalId);
     }
 
-    public function reject(string $approvalId, string $rejectedBy, string $reason): array
+    public function reject(string $approvalId, string $reason): array
     {
         $sql = 'UPDATE governance.approval
-            SET status = :status, rejected_by = :rejected_by, rejected_at = :rejected_at,
-                rejection_reason = :reason
+            SET status = :status, rejected_at = :rejected_at, rejection_reason = :reason
             WHERE approval_id = :id AND status = :pending_status';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             ':status' => 'REJECTED',
-            ':rejected_by' => $rejectedBy,
             ':rejected_at' => $this->now(),
             ':reason' => $reason,
             ':id' => $approvalId,
@@ -128,10 +117,6 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
         $where = [];
         $params = [];
 
-        if (isset($filters['tenant_id'])) {
-            $where[] = 'tenant_id = :tenant_id';
-            $params[':tenant_id'] = $filters['tenant_id'];
-        }
         if (isset($filters['status'])) {
             $where[] = 'status = :status';
             $params[':status'] = $filters['status'];
@@ -167,10 +152,6 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
         $where = [];
         $params = [];
 
-        if (isset($filters['tenant_id'])) {
-            $where[] = 'tenant_id = :tenant_id';
-            $params[':tenant_id'] = $filters['tenant_id'];
-        }
         if (isset($filters['entity_type'])) {
             $where[] = 'entity_type = :entity_type';
             $params[':entity_type'] = $filters['entity_type'];
@@ -203,16 +184,15 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
     {
         $id = $this->uuid();
         $sql = 'INSERT INTO governance.policy
-            (policy_id, tenant_id, policy_type, name, description, rules, priority,
-             effective_from, status, version, created_by, created_at)
+            (policy_id, policy_type, name, description, rules, priority,
+             effective_from, status, version, created_at)
             VALUES
-            (:id, :tenant_id, :policy_type, :name, :description, :rules, :priority,
-             :effective_from, :status, :version, :created_by, :created_at)';
+            (:id, :policy_type, :name, :description, :rules, :priority,
+             :effective_from, :status, :version, :created_at)';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             ':id' => $id,
-            ':tenant_id' => $data['tenant_id'],
             ':policy_type' => $data['policy_type'],
             ':name' => $data['name'],
             ':description' => $data['description'] ?? null,
@@ -221,7 +201,6 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
             ':effective_from' => $this->now(),
             ':status' => 'DRAFT',
             ':version' => 1,
-            ':created_by' => $data['created_by'],
             ':created_at' => $this->now(),
         ]);
 
@@ -247,10 +226,6 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
         $where = [];
         $params = [];
 
-        if (isset($filters['tenant_id'])) {
-            $where[] = 'tenant_id = :tenant_id';
-            $params[':tenant_id'] = $filters['tenant_id'];
-        }
         if (isset($filters['policy_type'])) {
             $where[] = 'policy_type = :policy_type';
             $params[':policy_type'] = $filters['policy_type'];
@@ -321,29 +296,25 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
     public function startWorkflow(
         string $type,
         string $entityType,
-        string $entityId,
-        string $initiatedBy,
-        ?string $tenantId = null
+        string $entityId
     ): array {
         $id = $this->uuid();
         $sql = 'INSERT INTO governance.workflow
-            (workflow_id, tenant_id, workflow_type, entity_type, entity_id,
-             current_step, total_steps, status, initiated_by, initiated_at)
+            (workflow_id, workflow_type, entity_type, entity_id,
+             current_step, total_steps, status, initiated_at)
             VALUES
-            (:id, :tenant_id, :type, :entity_type, :entity_id,
-             :current_step, :total_steps, :status, :initiated_by, :initiated_at)';
+            (:id, :type, :entity_type, :entity_id,
+             :current_step, :total_steps, :status, :initiated_at)';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             ':id' => $id,
-            ':tenant_id' => $tenantId,
             ':type' => $type,
             ':entity_type' => $entityType,
             ':entity_id' => $entityId,
             ':current_step' => 0,
             ':total_steps' => 1,
             ':status' => 'PENDING',
-            ':initiated_by' => $initiatedBy,
             ':initiated_at' => $this->now(),
         ]);
 

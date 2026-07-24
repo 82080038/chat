@@ -1,9 +1,9 @@
 #!/bin/bash
 # ============================================================================
 # migrate.sh
--- Migration runner for MySQL (and optionally PostgreSQL)
--- Usage: ./migrate.sh [up|down|seed]
--- ============================================================================
+# Migration runner for MySQL (and optionally PostgreSQL)
+# Usage: ./migrate.sh [up|down|seed]
+# ============================================================================
 
 set -e
 
@@ -25,7 +25,7 @@ run_mysql() {
 case "${1:-up}" in
   up)
     echo "=== Running MySQL Migrations (UP) ==="
-    for f in $(ls "$MIGRATION_DIR"/0[0-1][0-9]_*.sql | sort); do
+    for f in "$MIGRATION_DIR"/00{1..9}_*.sql "$MIGRATION_DIR"/010_*.sql; do
       run_mysql "$f"
     done
     echo "=== MySQL Migrations Complete ==="

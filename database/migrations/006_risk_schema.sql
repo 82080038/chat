@@ -12,7 +12,6 @@ USE platform;
 -- ----------------------------------------------------------------------------
 CREATE TABLE risk.risk_profile (
   risk_profile_id      VARCHAR(36)   NOT NULL,
-  tenant_id            VARCHAR(36)   NOT NULL,
   name                 VARCHAR(200)  NOT NULL,
   risk_tolerance       ENUM('CONSERVATIVE','MODERATE','AGGRESSIVE','SPECULATIVE') NOT NULL,
   max_single_position  DECIMAL(10,6) NULL,
@@ -25,9 +24,8 @@ CREATE TABLE risk.risk_profile (
   created_at           TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at           TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (risk_profile_id),
-  UNIQUE KEY uq_rp_tenant_name (tenant_id, name),
-  KEY idx_rp_tenant_status (tenant_id, status),
-  CONSTRAINT fk_rp_tenant FOREIGN KEY (tenant_id) REFERENCES identity.tenant(tenant_id) ON DELETE RESTRICT
+  UNIQUE KEY uq_rp_name (name),
+  KEY idx_rp_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------------------------
@@ -78,7 +76,7 @@ CREATE TABLE risk.risk_assessment (
 
 -- ----------------------------------------------------------------------------
 -- risk_event
--- Note: portfolio_id and resolved_by FKs added after portfolio/user tables exist
+-- Note: portfolio_id FK is added after portfolio table exists
 -- ----------------------------------------------------------------------------
 CREATE TABLE risk.risk_event (
   risk_event_id    VARCHAR(36)   NOT NULL,
@@ -92,7 +90,6 @@ CREATE TABLE risk.risk_event (
   detected_at      TIMESTAMP(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   resolved_at      TIMESTAMP(6)  NULL,
   resolution       TEXT          NULL,
-  resolved_by      VARCHAR(36)   NULL,
   status           ENUM('OPEN','ACKNOWLEDGED','RESOLVED','ESCALATED') NOT NULL DEFAULT 'OPEN',
   PRIMARY KEY (risk_event_id),
   KEY idx_re_portfolio_status (portfolio_id, status),

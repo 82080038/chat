@@ -20,8 +20,8 @@ Production:   https://api.platform.com/api/v1
 ```
 Scheme:     Bearer Token (JWT)
 Header:     Authorization: Bearer <jwt_token>
-API Key:    X-API-Key: <api_key>  (for programmatic clients)
-Tenant:     X-Tenant-ID: <tenant_id>  (required for all requests)
+Subject:    Single owner account
+Scope:      Every authenticated token has full owner access
 ```
 
 ### Request Format
@@ -75,7 +75,7 @@ Response Envelope:
 204 No Content      — Successful DELETE
 400 Bad Request     — Validation error
 401 Unauthorized    — Missing/invalid token
-403 Forbidden       — Insufficient permissions
+403 Forbidden       — Owner account is locked or operation is disabled
 404 Not Found       — Resource not found
 409 Conflict        — Duplicate resource
 422 Unprocessable   — Business rule violation
@@ -92,7 +92,7 @@ Headers:
   X-RateLimit-Remaining: 58
   X-RateLimit-Reset:     1721816400
 
-Default: 60 requests/minute per API key
+Default: 60 requests/minute per owner session
 Burst:   10 requests/second
 ```
 
@@ -107,41 +107,41 @@ Burst:   10 requests/second
 
 ---
 
-## 2. Identity Context — Endpoints
+## 2. Single-Owner Identity Context — Endpoints
 
-### Auth
+The application supports exactly one owner account. There are no tenants, additional users, roles, permissions, or API clients.
+
+### Owner Authentication
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| POST | `/auth/register` | Register new user | Public |
-| POST | `/auth/login` | Login, returns JWT | Public |
-| POST | `/auth/refresh` | Refresh JWT token | Bearer |
-| POST | `/auth/logout` | Revoke current token | Bearer |
-| GET | `/auth/me` | Get current user profile | Bearer |
-| POST | `/auth/verify-email` | Verify email with token | Public |
-| POST | `/auth/forgot-password` | Request password reset | Public |
-| POST | `/auth/reset-password` | Reset password with token | Public |
+| POST | `/auth/setup` | Create the only owner account; available once | Public/First-run |
+| POST | `/auth/login` | Owner login, returns JWT | Public |
+| POST | `/auth/refresh` | Refresh owner JWT | Bearer |
+| POST | `/auth/logout` | Revoke current owner token | Bearer |
+| GET | `/auth/me` | Get owner profile | Bearer |
+| POST | `/auth/change-password` | Change owner password | Bearer |
+| GET | `/auth/preferences` | Get owner preferences | Bearer |
+| PUT | `/auth/preferences` | Update owner preferences | Bearer |
 
-#### POST /auth/register
+#### POST /auth/setup
 
 ```json
-// Request
+// Request — rejected with 409 after the owner exists
 {
-  "email": "user@example.com",
+  "email": "owner@example.com",
   "password": "SecurePass123!",
-  "legal_name": "John Doe",
-  "display_name": "John",
-  "phone": "+628123456789",
-  "tenant_slug": "default"
+  "legal_name": "Owner Name",
+  "display_name": "Owner",
+  "phone": "+628123456789"
 }
 
 // Response 201
 {
   "data": {
-    "user_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
-    "email": "user@example.com",
-    "display_name": "John",
-    "email_verified": false,
+    "owner_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "email": "owner@example.com",
+    "display_name": "Owner",
     "created_at": "2026-07-24T06:00:00.000000Z"
   }
 }
@@ -152,9 +152,8 @@ Burst:   10 requests/second
 ```json
 // Request
 {
-  "email": "user@example.com",
-  "password": "SecurePass123!",
-  "tenant_slug": "default"
+  "email": "owner@example.com",
+  "password": "SecurePass123!"
 }
 
 // Response 200
@@ -164,61 +163,14 @@ Burst:   10 requests/second
     "token_type": "Bearer",
     "expires_in": 3600,
     "refresh_token": "ref_0192a3b4...",
-    "user": {
-      "user_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
-      "email": "user@example.com",
-      "display_name": "John",
-      "roles": ["trader"],
-      "permissions": ["market_data.read", "portfolio.read", "trading.write"]
+    "owner": {
+      "owner_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+      "email": "owner@example.com",
+      "display_name": "Owner"
     }
   }
 }
 ```
-
-### Tenants (Admin only)
-
-| Method | Path | Description | Auth |
-|--------|------|-------------|------|
-| GET | `/tenants` | List tenants | Admin |
-| POST | `/tenants` | Create tenant | Admin |
-| GET | `/tenants/{id}` | Get tenant | Admin |
-| PUT | `/tenants/{id}` | Update tenant | Admin |
-| DELETE | `/tenants/{id}` | Suspend tenant (soft) | Admin |
-
-### Users
-
-| Method | Path | Description | Auth |
-|--------|------|-------------|------|
-| GET | `/users` | List users (tenant-scoped) | Bearer |
-| POST | `/users` | Create user (admin) | Admin |
-| GET | `/users/{id}` | Get user | Bearer |
-| PUT | `/users/{id}` | Update user | Bearer/Self |
-| DELETE | `/users/{id}` | Suspend user | Admin |
-| GET | `/users/{id}/preferences` | Get user preferences | Bearer/Self |
-| PUT | `/users/{id}/preferences` | Update preferences | Bearer/Self |
-
-### Roles & Permissions
-
-| Method | Path | Description | Auth |
-|--------|------|-------------|------|
-| GET | `/roles` | List roles | Bearer |
-| POST | `/roles` | Create role | Admin |
-| GET | `/roles/{id}` | Get role with permissions | Bearer |
-| PUT | `/roles/{id}` | Update role | Admin |
-| DELETE | `/roles/{id}` | Delete role (non-system) | Admin |
-| POST | `/roles/{id}/permissions` | Assign permissions | Admin |
-| DELETE | `/roles/{id}/permissions/{permId}` | Revoke permission | Admin |
-| GET | `/permissions` | List all permissions | Bearer |
-
-### API Clients
-
-| Method | Path | Description | Auth |
-|--------|------|-------------|------|
-| GET | `/api-clients` | List API clients | Bearer |
-| POST | `/api-clients` | Create API client | Bearer |
-| GET | `/api-clients/{id}` | Get API client | Bearer |
-| DELETE | `/api-clients/{id}` | Revoke API client | Admin |
-| POST | `/api-clients/{id}/rotate-key` | Rotate API key | Admin |
 
 ---
 
@@ -254,9 +206,9 @@ Burst:   10 requests/second
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/instruments` | List instruments (filterable) | Bearer |
-| POST | `/instruments` | Create instrument (admin) | Admin |
+| POST | `/instruments` | Create instrument | Bearer |
 | GET | `/instruments/{id}` | Get instrument with listings | Bearer |
-| PUT | `/instruments/{id}` | Update instrument | Admin |
+| PUT | `/instruments/{id}` | Update instrument | Bearer |
 | GET | `/instruments/{id}/listings` | Get instrument listings | Bearer |
 | GET | `/instruments/{id}/corporate-actions` | Get corporate actions | Bearer |
 | GET | `/instruments/{id}/ohlcv` | Get OHLCV (proxies to TimescaleDB) | Bearer |

@@ -13,9 +13,9 @@ final class GovernanceRoutes
     public static function register(Router $router): void
     {
         // Audit Logs
-        $router->get('/audit-logs', [self::class, 'listAuditLogs'], ['admin']);
-        $router->get('/audit-logs/{id}', [self::class, 'getAuditLog'], ['admin']);
-        $router->get('/audit-logs/entity/{entityType}/{entityId}', [self::class, 'getEntityAuditTrail'], ['admin']);
+        $router->get('/audit-logs', [self::class, 'listAuditLogs'], ['bearer']);
+        $router->get('/audit-logs/{id}', [self::class, 'getAuditLog'], ['bearer']);
+        $router->get('/audit-logs/entity/{entityType}/{entityId}', [self::class, 'getEntityAuditTrail'], ['bearer']);
 
         // Approvals
         $router->get('/approvals', [self::class, 'listApprovals'], ['bearer']);
@@ -25,7 +25,7 @@ final class GovernanceRoutes
 
         // Policies
         $router->get('/policies', [self::class, 'listPolicies'], ['bearer']);
-        $router->post('/policies', [self::class, 'createPolicy'], ['admin']);
+        $router->post('/policies', [self::class, 'createPolicy'], ['bearer']);
         $router->get('/policies/{id}', [self::class, 'getPolicy'], ['bearer']);
         $router->post('/policies/{id}/evaluate', [self::class, 'evaluatePolicy'], ['bearer']);
 
@@ -47,7 +47,7 @@ final class GovernanceRoutes
     {
         $query = $request->getAllQuery();
         [$page, $perPage] = self::parsePage($query);
-        $filters = self::extractFilters($query, ['tenant_id', 'entity_type', 'entity_id', 'actor_type']);
+        $filters = self::extractFilters($query, ['entity_type', 'entity_id', 'actor_type']);
         $result = self::service()->listAuditLogs($filters, $page, $perPage);
         return Response::ok($result['data'], $result['meta']);
     }
@@ -79,7 +79,7 @@ final class GovernanceRoutes
     {
         $query = $request->getAllQuery();
         [$page, $perPage] = self::parsePage($query);
-        $filters = self::extractFilters($query, ['tenant_id', 'status', 'approval_type', 'entity_type']);
+        $filters = self::extractFilters($query, ['status', 'approval_type', 'entity_type']);
         $result = self::service()->listApprovals($filters, $page, $perPage);
         return Response::ok($result['data'], $result['meta']);
     }
@@ -97,8 +97,7 @@ final class GovernanceRoutes
     public static function approveApproval(Request $request): Response
     {
         $id = $request->getParam('id');
-        $userId = $request->getUserId();
-        $result = self::service()->approve($id, $userId ?? '');
+        $result = self::service()->approve($id);
         if (isset($result['error'])) {
             return Response::error(422, 'APPROVAL_ERROR', $result['error']);
         }
@@ -108,9 +107,8 @@ final class GovernanceRoutes
     public static function rejectApproval(Request $request): Response
     {
         $id = $request->getParam('id');
-        $userId = $request->getUserId() ?? '';
         $reason = $request->getBody('rejection_reason', '');
-        $result = self::service()->reject($id, $userId, $reason);
+        $result = self::service()->reject($id, $reason);
         if (isset($result['error'])) {
             return Response::error(422, 'APPROVAL_ERROR', $result['error']);
         }
@@ -121,7 +119,7 @@ final class GovernanceRoutes
     {
         $query = $request->getAllQuery();
         [$page, $perPage] = self::parsePage($query);
-        $filters = self::extractFilters($query, ['tenant_id', 'policy_type', 'status']);
+        $filters = self::extractFilters($query, ['policy_type', 'status']);
         $result = self::service()->listPolicies($filters, $page, $perPage);
         return Response::ok($result['data'], $result['meta']);
     }
@@ -129,8 +127,6 @@ final class GovernanceRoutes
     public static function createPolicy(Request $request): Response
     {
         $data = $request->getAllBody();
-        $data['created_by'] = $request->getUserId();
-        $data['tenant_id'] = $data['tenant_id'] ?? $request->getTenantId();
         $result = self::service()->createPolicy($data);
         return Response::created($result);
     }
