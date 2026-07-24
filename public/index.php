@@ -10,6 +10,8 @@ use Platform\Config\ConfigRoutes;
 use Platform\Config\ConfigService;
 use Platform\DataIngestion\DataIngestionRoutes;
 use Platform\DataIngestion\DataIngestionService;
+use Platform\Valuation\ValuationRoutes;
+use Platform\Valuation\ValuationService;
 use Platform\Core\Application;
 use Platform\Core\Http\Request;
 use Platform\Core\Http\Response;
@@ -46,6 +48,7 @@ $app->registerService('portfolio', new PortfolioService());
 $app->registerService('trading', new TradingService());
 $app->registerService('settlement', new SettlementService());
 $app->registerService('data_ingestion', new DataIngestionService());
+$app->registerService('valuation', new ValuationService());
 
 // Create router
 $router = new Router();
@@ -86,7 +89,7 @@ $router->get('/metrics', function (Request $request): Response {
             'environment' => $app->getEnvironment(),
         ],
         'uptime_seconds' => time() - ($_SERVER['REQUEST_TIME'] ?? time()),
-        'services_registered' => 11,
+        'services_registered' => 12,
     ]);
 });
 
@@ -112,6 +115,7 @@ TradingRoutes::register($router);
 SettlementRoutes::register($router);
 GovernanceRoutes::register($router);
 DataIngestionRoutes::register($router);
+ValuationRoutes::register($router);
 
 // Dispatch
 $request = new Request();

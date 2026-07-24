@@ -104,25 +104,26 @@
 ## CURRENT TASK
 
 ```
-TASK ID: CYCLE-003
-TITLE: Valuation Engine — DCF, relative valuation, fair value
+TASK ID: CYCLE-004
+TITLE: Alert System — price, signal, risk alerts
 PRIORITY: High
-FASE: 3 (Analysis Engines)
+FASE: 6 (Portfolio Management)
 
 DESCRIPTION:
-Tambah methods ke FundamentalService atau buat ValuationService baru:
-- DCF model (NPV dari projected FCF)
-- Relative valuation (P/E, P/BV peer comparison)
-- Fair value calculation (weighted blend)
-- Endpoints: POST /valuations, GET /valuations/{id}, GET /valuations/instrument/{instrumentId}
+Buat AlertService di src/Alert/:
+- Schema: tabel alert, alert_rule, alert_notification
+- Price alerts (above/below threshold)
+- Signal alerts (new signal created)
+- Risk alerts (risk event triggered)
+- Endpoints: CRUD alerts, GET notifications, POST acknowledge
 - Gunakan BaseService, ApiException, declare(strict_types=1)
 
 FILES TO CREATE:
-- src/Valuation/ValuationServiceInterface.php
-- src/Valuation/ValuationService.php
-- src/Valuation/ValuationRoutes.php
-- database/migrations/015_valuation_schema.sql
-- tests/Valuation/ValuationServiceTest.php
+- src/Alert/AlertServiceInterface.php
+- src/Alert/AlertService.php
+- src/Alert/AlertRoutes.php
+- database/migrations/016_alert_schema.sql
+- tests/Alert/AlertServiceTest.php
 
 VALIDATION:
 - php vendor/bin/phpunit --no-coverage (all pass)
@@ -135,15 +136,6 @@ VALIDATION:
 ## TASK QUEUE (After Current Task)
 
 ```
-CYCLE-004: Alert System — price, signal, risk alerts
-  - Buat AlertService di src/Alert/
-  - Schema: tabel alert, alert_rule, alert_notification
-  - Price alerts (above/below threshold)
-  - Signal alerts (new signal created)
-  - Risk alerts (risk event triggered)
-  - Endpoints: CRUD alerts, GET notifications, POST acknowledge
-  - FASE: 6
-
 CYCLE-005: Frontend & UI — Dashboard
   - Pilih stack: React + TailwindCSS + shadcn/ui
   - Dashboard: market overview, portfolio summary, recent signals
@@ -227,7 +219,14 @@ CYCLE-010: Production Deployment
   - 7 tests/12 assertions, 67 tests/130 assertions total
   - Service #11 registered, migrate.sh updated for 011-014
 
-[NEXT] CYCLE-003: Valuation Engine — DCF, relative valuation, fair value
+[2026-07-24] CYCLE-003: Valuation Engine — DCF, relative valuation, fair value
+  - ValuationService: createValuation, getValuation, listValuations, getInstrumentValuations, calculateDcf, calculateRelative, calculateFairValue
+  - 7 endpoints: CRUD /valuations, GET /valuations/instrument/{id}, POST /valuations/dcf, POST /valuations/relative, POST /valuations/fair-value
+  - Schema: valuation.valuation_result (1 table, 59 total)
+  - 10 tests/21 assertions, 77 tests/151 assertions total
+  - Service #12 registered, migrate.sh updated for 011-015
+
+[NEXT] CYCLE-004: Alert System — price, signal, risk alerts
   - Status: NOT STARTED
 ```
 

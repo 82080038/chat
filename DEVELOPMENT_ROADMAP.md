@@ -7,7 +7,7 @@
 
 **Last updated:** 24 Juli 2026 (CYCLE-001 Docker setup)
 
-### Backend Services: 11/11 Complete
+### Backend Services: 12/12 Complete
 
 | # | Service | Phase | Methods | Endpoints | Status |
 |---|---------|-------|---------|-----------|--------|
@@ -22,6 +22,7 @@
 | 9 | SettlementService | 5 | 7 | 7 | ✅ Done |
 | 10 | GovernanceService | 1+fix | 20 | 18 | ✅ Done |
 | 11 | DataIngestionService | 2 | 5 | 5 | ✅ Done |
+| 12 | ValuationService | 3 | 7 | 7 | ✅ Done |
 
 ### Cross-Service Wiring: ✅ Done
 - ServiceHub: pre-trade risk check, auto-settlement, audit logging
@@ -39,18 +40,17 @@
 ### Test Results
 
 ```
-PHPUnit: 67 tests, 130 assertions — ALL PASS
+PHPUnit: 77 tests, 151 assertions — ALL PASS
 PSR-12: 0 violations on new files (1 pre-existing in ConfigServiceTest)
-Total endpoints: 183 (179 service + 4 cross-cutting)
-MySQL tables: 58 (schema designed, migrations not yet applied)
+Total endpoints: 190 (186 service + 4 cross-cutting)
+MySQL tables: 59 (schema designed, migrations not yet applied)
 ```
 
 ### Next Priorities (from unchecked items below)
 
-1. **Valuation models** — DCF, relative valuation, fair value calculation
-2. **Alert system** — price, signal, risk alerts
-3. **Frontend & UI** — dashboard, stock detail, screening
-4. **Production deployment** — Kubernetes, monitoring, security audit
+1. **Alert system** — price, signal, risk alerts
+2. **Frontend & UI** — dashboard, stock detail, screening
+3. **Production deployment** — Kubernetes, monitoring, security audit
 
 ---
 
@@ -92,12 +92,10 @@ MySQL tables: 58 (schema designed, migrations not yet applied)
   - [ ] Debt analysis
   - [ ] FCF calculation
   - [ ] Sector-specific models (bank, commodity, consumer)
-- [ ] Valuation Engine
-  - [x] P/E, P/BV, EV/EBITDA, PEG (metric storage via FundamentalService)
-  - [x] Dividend Yield, FCF Yield (metric storage)
-  - [ ] DCF model
-  - [ ] Relative valuation
-  - [ ] Fair value calculation
+- [x] Valuation Engine (ValuationService)
+  - [x] DCF model (calculateDcf — NPV of projected FCF + terminal value)
+  - [x] Relative valuation (calculateRelative — peer avg/median)
+  - [x] Fair value calculation (calculateFairValue — weighted blend)
 - [x] Technical Engine (AnalyticsService — signals, scores)
   - [x] SMA, EMA, WMA (feature storage)
   - [x] RSI, MACD, Stochastic (signal storage)
