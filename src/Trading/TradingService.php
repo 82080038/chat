@@ -6,9 +6,20 @@ namespace Platform\Trading;
 
 use Platform\Core\BaseService;
 use Platform\Core\Exceptions\ApiException;
+use Platform\Core\ServiceHub;
 
 final class TradingService extends BaseService implements TradingServiceInterface
 {
+    private ?ServiceHub $hub = null;
+
+    private function hub(): ServiceHub
+    {
+        if ($this->hub === null) {
+            $this->hub = ServiceHub::getInstance();
+        }
+        return $this->hub;
+    }
+
     // ─── Brokers ─────────────────────────────────────────────────────────
 
     public function listBrokers(array $filters, int $page, int $perPage): array
@@ -185,7 +196,15 @@ final class TradingService extends BaseService implements TradingServiceInterfac
             'UPDATE trading.decision SET status = :status WHERE decision_id = :id'
         );
         $stmt->execute([':status' => 'APPROVED', ':id' => $id]);
-        return $this->getDecision($id);
+        $decision = $this->getDecision($id);
+        $this->hub()->audit(
+            'DECISION_APPROVED',
+            'DECISION',
+            $id,
+            $existing,
+            $decision
+        );
+        return $decision;
     }
 
     public function rejectDecision(string $id, string $reason): array
@@ -206,7 +225,15 @@ final class TradingService extends BaseService implements TradingServiceInterfac
             ':reason' => $reason,
             ':id' => $id,
         ]);
-        return $this->getDecision($id);
+        $decision = $this->getDecision($id);
+        $this->hub()->audit(
+            'DECISION_REJECTED',
+            'DECISION',
+            $id,
+            $existing,
+            $decision
+        );
+        return $decision;
     }
 
     public function overrideDecision(string $id, string $reason): array
@@ -373,6 +400,25 @@ final class TradingService extends BaseService implements TradingServiceInterfac
         if ($intent === null) {
             throw new ApiException(404, 'ORDER_INTENT_NOT_FOUND', 'Order intent was not found');
         }
+
+        // Pre-trade risk check via cross-service wiring
+        $riskResult = $this->hub()->checkPreTradeRisk(
+            $intent['portfolio_id'],
+            [
+                'quantity' => (float) $data['quantity'],
+                'limit_price' => (float) ($data['limit_price'] ?? 0),
+            ]
+        );
+        if (!$riskResult['passed']) {
+            $violations = json_encode($riskResult['violations']);
+            throw new ApiException(
+                422,
+                'RISK_LIMIT_VIOLATION',
+                'Order rejected due to risk limit violations',
+                $riskResult['violations']
+            );
+        }
+
         $id = $this->uuid();
         $now = $this->now();
         $orderRef = 'ORD-' . date('Ymd') . '-' . str_pad(
@@ -417,7 +463,15 @@ final class TradingService extends BaseService implements TradingServiceInterfac
             'UPDATE trading.order_intent SET status = :status WHERE order_intent_id = :id'
         );
         $stmt2->execute([':status' => 'CONVERTED', ':id' => $data['order_intent_id']]);
-        return $this->getOrder($id);
+        $order = $this->getOrder($id);
+        $this->hub()->audit(
+            'ORDER_SUBMITTED',
+            'ORDER',
+            $id,
+            null,
+            $order
+        );
+        return $order;
     }
 
     public function getOrder(string $id): ?array
@@ -444,7 +498,15 @@ final class TradingService extends BaseService implements TradingServiceInterfac
              WHERE order_id = :id'
         );
         $stmt->execute([':status' => 'CANCELLED', ':reason' => $reason, ':id' => $id]);
-        return $this->getOrder($id);
+        $order = $this->getOrder($id);
+        $this->hub()->audit(
+            'ORDER_CANCELLED',
+            'ORDER',
+            $id,
+            $existing,
+            $order
+        );
+        return $order;
     }
 
     public function getOrderExecutions(string $orderId): array
@@ -544,7 +606,21 @@ final class TradingService extends BaseService implements TradingServiceInterfac
             ':status' => $data['status'] ?? 'PENDING_SETTLEMENT',
         ]);
         $this->updateOrderFill($data['order_id'], (float) $data['fill_quantity']);
-        return $this->getExecution($id);
+        $execution = $this->getExecution($id);
+
+        // Auto-create settlement record via cross-service wiring
+        $this->hub()->autoCreateSettlement($execution);
+
+        // Audit log the execution
+        $this->hub()->audit(
+            'EXECUTION_RECORDED',
+            'EXECUTION',
+            $id,
+            null,
+            $execution
+        );
+
+        return $execution;
     }
 
     // ─── Private Helpers ─────────────────────────────────────────────────

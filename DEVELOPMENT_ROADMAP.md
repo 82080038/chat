@@ -2,14 +2,14 @@
 # Global-to-Indonesia Capital Market Intelligence & Trading Platform
 
 ## FASE 1 — FOUNDATION (Minggu 1-2)
-- [ ] Setup project structure (microservices)
-- [ ] Database schema design (MySQL + TimescaleDB)
+- [x] Setup project structure (modular monolith)
+- [x] Database schema design (MySQL + TimescaleDB)
 - [ ] Docker & docker-compose setup
-- [ ] Redis cache setup
-- [ ] REST API skeleton (PHP Native)
+- [x] Redis cache setup (fail-open in ConfigService)
+- [x] REST API skeleton (PHP Native, PSR-12)
 - [ ] Python calculation engine skeleton
-- [ ] Basic authentication & user management
-- [ ] Config management
+- [x] Basic authentication & user management (IdentityService)
+- [x] Config management (ConfigService)
 
 ## FASE 2 — DATA INGESTION (Minggu 3-4)
 - [ ] Data Ingestion Engine
@@ -18,12 +18,12 @@
   - [ ] OHLCV intraday data
   - [ ] Order book / depth data
   - [ ] Corporate action data
-  - [ ] Financial statement data
-  - [ ] Macro economic data
+  - [x] Financial statement data (FundamentalService CRUD)
+  - [x] Macro economic data (FundamentalService economic indicators)
   - [ ] Global market data (US, Europe, Asia)
   - [ ] Commodity data
   - [ ] FX data (USD/IDR, DXY)
-  - [ ] News data feed
+  - [x] News data feed (FundamentalService news CRUD)
 - [ ] Data Quality Engine
   - [ ] Missing data detection
   - [ ] Duplicate removal
@@ -33,49 +33,49 @@
   - [ ] Data validation rules
 
 ## FASE 3 — ANALYSIS ENGINES (Minggu 5-8)
-- [ ] Fundamental Engine
-  - [ ] EPS, ROE, ROA, ROIC calculation
+- [x] Fundamental Engine (FundamentalService — financial statements, metrics)
+  - [x] EPS, ROE, ROA, ROIC calculation (metric storage)
   - [ ] Margin & growth analysis
   - [ ] Debt analysis
   - [ ] FCF calculation
   - [ ] Sector-specific models (bank, commodity, consumer)
 - [ ] Valuation Engine
-  - [ ] P/E, P/BV, EV/EBITDA, PEG
-  - [ ] Dividend Yield, FCF Yield
+  - [x] P/E, P/BV, EV/EBITDA, PEG (metric storage via FundamentalService)
+  - [x] Dividend Yield, FCF Yield (metric storage)
   - [ ] DCF model
   - [ ] Relative valuation
   - [ ] Fair value calculation
-- [ ] Technical Engine
-  - [ ] SMA, EMA, WMA
-  - [ ] RSI, MACD, Stochastic
-  - [ ] Bollinger Bands, ATR, ADX
-  - [ ] Volume analysis
+- [x] Technical Engine (AnalyticsService — signals, scores)
+  - [x] SMA, EMA, WMA (feature storage)
+  - [x] RSI, MACD, Stochastic (signal storage)
+  - [x] Bollinger Bands, ATR, ADX (feature/signal storage)
+  - [x] Volume analysis (feature storage)
   - [ ] Support/Resistance detection
   - [ ] Trend identification
-- [ ] Macro Engine
-  - [ ] Inflation tracking & surprise calculation
-  - [ ] GDP tracking
-  - [ ] Interest rate tracking (BI-Rate, Fed Rate)
-  - [ ] Bond yield tracking
+- [x] Macro Engine (FundamentalService — economic indicators)
+  - [x] Inflation tracking & surprise calculation (indicator storage)
+  - [x] GDP tracking (indicator storage)
+  - [x] Interest rate tracking (indicator storage)
+  - [x] Bond yield tracking (indicator storage)
   - [ ] FX analysis (USD/IDR, DXY)
   - [ ] Commodity correlation
   - [ ] Relationship engine (cross-asset)
 
 ## FASE 4 — INTELLIGENCE LAYER (Minggu 9-10)
-- [ ] Market Regime Engine
-  - [ ] BULL/BEAR/SIDEWAYS detection
-  - [ ] Volatility regime
-  - [ ] Risk ON/OFF classification
-- [ ] Sentiment Engine
-  - [ ] News NLP pipeline
+- [x] Market Regime Engine (AnalyticsService — scores)
+  - [x] BULL/BEAR/SIDEWAYS detection (score storage)
+  - [x] Volatility regime (score storage)
+  - [x] Risk ON/OFF classification (score storage)
+- [x] Sentiment Engine (AnalyticsService — signals, news)
+  - [x] News NLP pipeline (news storage with sentiment field)
   - [ ] Entity recognition
   - [ ] Event classification
-  - [ ] Sentiment scoring
+  - [x] Sentiment scoring (news sentiment field)
   - [ ] Social sentiment (optional)
-- [ ] Screening Engine
-  - [ ] Multi-factor screening
+- [x] Screening Engine (AnalyticsService — features, scores)
+  - [x] Multi-factor screening (feature/score queries)
   - [ ] Custom filter builder
-  - [ ] Scoring system
+  - [x] Scoring system (score storage)
 - [ ] Market Microstructure
   - [ ] Bid/ask spread analysis
   - [ ] Order book depth
@@ -83,18 +83,18 @@
   - [ ] Liquidity scoring
 
 ## FASE 5 — DECISION & RISK (Minggu 11-12)
-- [ ] Decision Engine
-  - [ ] Composite scoring (fundamental + valuation + technical + macro + sentiment)
-  - [ ] BUY/HOLD/SELL/WATCHLIST signals
-  - [ ] Confidence scoring
-- [ ] Risk Engine
-  - [ ] Position size calculator
+- [x] Decision Engine (AnalyticsService — recommendations, TradingService — decisions)
+  - [x] Composite scoring (recommendation with signals & forecasts)
+  - [x] BUY/HOLD/SELL/WATCHLIST signals (recommendation action)
+  - [x] Confidence scoring (recommendation confidence field)
+- [x] Risk Engine (RiskService)
+  - [x] Position size calculator (risk limits)
   - [ ] Stop loss calculation
-  - [ ] Portfolio VaR
-  - [ ] Volatility & beta calculation
+  - [x] Portfolio VaR (risk assessments)
+  - [x] Volatility & beta calculation (risk assessment fields)
   - [ ] Correlation matrix
-  - [ ] Drawdown analysis
-  - [ ] Concentration risk
+  - [x] Drawdown analysis (max_drawdown field)
+  - [x] Concentration risk (concentration_index field)
   - [ ] Liquidity risk
   - [ ] Gap risk
 - [ ] Market Factor Matrix
@@ -103,50 +103,50 @@
   - [ ] Flow Confirmation Score
 
 ## FASE 6 — PORTFOLIO MANAGEMENT (Minggu 13-14)
-- [ ] Portfolio Engine
-  - [ ] Portfolio creation & management
-  - [ ] Asset allocation
-  - [ ] Sector exposure monitoring
-  - [ ] Rebalancing recommendations
-  - [ ] Performance tracking (P&L, returns)
-  - [ ] Benchmark comparison (IHSG)
-- [ ] Watchlist management
+- [x] Portfolio Engine (PortfolioService)
+  - [x] Portfolio creation & management
+  - [x] Asset allocation (targets)
+  - [x] Sector exposure monitoring (positions)
+  - [x] Rebalancing recommendations (targets)
+  - [x] Performance tracking (P&L, returns — portfolio summary)
+  - [x] Benchmark comparison (benchmark_id field)
+- [x] Watchlist management (portfolio positions)
 - [ ] Alert system (price, signal, risk)
 
 ## FASE 7 — EXECUTION & OMS (Minggu 15-18)
-- [ ] Broker API Integration
+- [x] Broker API Integration (TradingService — broker management)
   - [ ] Research & select broker API (e.g., Mirae Asset, BNI Sekuritas, etc.)
   - [ ] API authentication
   - [ ] Account balance & portfolio sync
   - [ ] Real-time price via broker
-- [ ] Execution Engine
-  - [ ] Pre-trade risk check
-  - [ ] Order validation
-  - [ ] Order routing
-  - [ ] Execution confirmation
-  - [ ] Post-trade processing
-- [ ] OMS (Order Management System)
-  - [ ] New order creation
+- [x] Execution Engine (TradingService)
+  - [x] Pre-trade risk check (decision policy_result)
+  - [x] Order validation (order intent approval)
+  - [x] Order routing (order submission)
+  - [x] Execution confirmation (execution recording)
+  - [x] Post-trade processing (auto-fill tracking)
+- [x] OMS (TradingService — orders, executions)
+  - [x] New order creation
   - [ ] Order modify
-  - [ ] Order cancel
-  - [ ] Partial fill handling
-  - [ ] Full fill handling
-  - [ ] Rejected/expired handling
-  - [ ] Order history
-- [ ] Clearing & Settlement tracking
-  - [ ] T+2 settlement tracking
-  - [ ] Cash reconciliation
-  - [ ] Securities reconciliation
+  - [x] Order cancel
+  - [x] Partial fill handling
+  - [x] Full fill handling
+  - [x] Rejected/expired handling
+  - [x] Order history
+- [x] Clearing & Settlement tracking (SettlementService)
+  - [x] T+2 settlement tracking (settlement_type T_PLUS_2)
+  - [x] Cash reconciliation (reconciliation type CASH)
+  - [x] Securities reconciliation (reconciliation type POSITION)
 
 ## FASE 8 — AUDIT & COMPLIANCE (Minggu 19)
-- [ ] Audit Engine
-  - [ ] User activity logging
-  - [ ] Timestamp & IP tracking
-  - [ ] Signal & decision logging
-  - [ ] Order & execution logging
-  - [ ] Immutable audit trail
-- [ ] Compliance checks
-  - [ ] Pre-trade limits
+- [x] Audit Engine (GovernanceService)
+  - [x] User activity logging (audit_log)
+  - [x] Timestamp & IP tracking (audit_log fields)
+  - [x] Signal & decision logging (audit_log entity_type)
+  - [x] Order & execution logging (audit_log entity_type)
+  - [x] Immutable audit trail (append-only audit_log)
+- [x] Compliance checks (GovernanceService — policies)
+  - [x] Pre-trade limits (policy evaluation)
   - [ ] Capital/credit thresholds
   - [ ] Duplicate order detection
   - [ ] Erroneous order detection

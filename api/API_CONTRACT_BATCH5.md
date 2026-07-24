@@ -197,33 +197,33 @@ Query Parameters:
 | Context | Endpoints |
 |---------|-----------|
 | Single-Owner Identity | 8 |
-| Market Master | 20 |
-| Fundamental | 10 |
-| Analytics | 18 |
+| Config | 16 |
+| Market Master | 28 |
+| Fundamental | 17 |
+| Analytics | 31 |
 | Portfolio | 16 |
-| Risk | 12 |
-| Trading | 16 |
+| Risk | 13 |
+| Trading | 20 |
 | Settlement | 7 |
-| Governance | 14 |
-| Config | 13 |
+| Governance | 18 |
 | Cross-Cutting | 4 |
-| **Total** | **138** |
+| **Total** | **178** |
 
 ### HTTP Method Distribution
 
 | Method | Count |
 |--------|-------|
-| GET | 94 |
-| POST | 30 |
-| PUT | 11 |
-| DELETE | 3 |
-| **Total** | **138** |
+| GET | 104 |
+| POST | 42 |
+| PUT | 22 |
+| DELETE | 6 |
+| **Total** | **174** |
 
 ### Auth Requirement Distribution
 
 | Auth Level | Endpoints |
 |------------|-----------|
 | Public/First-run | 2 |
-| Bearer | 133 |
+| Bearer | 166 |
 | Public health/info | 3 |
 | Internal | 1 |

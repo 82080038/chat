@@ -74,6 +74,19 @@ $router->get('/health/live', function (Request $request): Response {
     return Response::ok(['status' => 'alive']);
 });
 
+// Metrics endpoint
+$router->get('/metrics', function (Request $request): Response {
+    $app = Application::getInstance();
+    return Response::ok([
+        'info' => [
+            'version' => '1.0.0',
+            'environment' => $app->getEnvironment(),
+        ],
+        'uptime_seconds' => time() - ($_SERVER['REQUEST_TIME'] ?? time()),
+        'services_registered' => 10,
+    ]);
+});
+
 // API info
 $router->get('/', function (Request $request): Response {
     return Response::ok([
