@@ -19,7 +19,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(emailVal, passVal);
-      navigate("/dashboard");
+      navigate("/");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Login failed";
       setError(msg);

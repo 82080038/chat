@@ -48,7 +48,8 @@ async function request<T>(
     );
   }
 
-  return data as T;
+  // Unwrap { data: ... } envelope from API responses
+  return (data?.data !== undefined ? data.data : data) as T;
 }
 
 export const api = {

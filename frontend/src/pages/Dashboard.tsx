@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import { api, type ApiResponse, type Signal, type Portfolio, type Alert } from "@/lib/api";
+import { api, type Signal, type Portfolio, type Alert } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,13 +22,20 @@ import {
 
 type HealthStatus = {
   status: string;
-  services_registered: number;
   timestamp: string;
+  version: string;
+};
+
+type MetricsData = {
+  info: { version: string; environment: string };
+  uptime_seconds: number;
+  services_registered: number;
 };
 
 export default function Dashboard() {
   const { owner, logout } = useAuth();
   const [health, setHealth] = useState<HealthStatus | null>(null);
+  const [metrics, setMetrics] = useState<MetricsData | null>(null);
   const [signals, setSignals] = useState<Signal[]>([]);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -39,21 +46,23 @@ export default function Dashboard() {
     setLoading(true);
     setError("");
     try {
-      const [healthRes, signalsRes, portfoliosRes, alertsRes] =
+      const [healthRes, metricsRes, signalsRes, portfoliosRes, alertsRes] =
         await Promise.allSettled([
           api.get<HealthStatus>("/health"),
-          api.get<ApiResponse<Signal[]>>("/signals?per_page=5"),
-          api.get<ApiResponse<Portfolio[]>>("/portfolios?per_page=5"),
-          api.get<ApiResponse<Alert[]>>("/alerts?per_page=5"),
+          api.get<MetricsData>("/metrics"),
+          api.get<Signal[]>("/signals?per_page=5"),
+          api.get<Portfolio[]>("/portfolios?per_page=5"),
+          api.get<Alert[]>("/alerts?per_page=5"),
         ]);
 
       if (healthRes.status === "fulfilled") setHealth(healthRes.value);
+      if (metricsRes.status === "fulfilled") setMetrics(metricsRes.value);
       if (signalsRes.status === "fulfilled")
-        setSignals(signalsRes.value.data || []);
+        setSignals(signalsRes.value || []);
       if (portfoliosRes.status === "fulfilled")
-        setPortfolios(portfoliosRes.value.data || []);
+        setPortfolios(portfoliosRes.value || []);
       if (alertsRes.status === "fulfilled")
-        setAlerts(alertsRes.value.data || []);
+        setAlerts(alertsRes.value || []);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load data";
       setError(msg);
@@ -117,7 +126,7 @@ export default function Dashboard() {
             title="Platform Status"
             value={health?.status || "—"}
             icon={<Activity className="h-5 w-5 text-green-500" />}
-            subtitle={health ? `${health.services_registered} services` : ""}
+            subtitle={metrics ? `${metrics.services_registered} services` : ""}
           />
           <StatCard
             title="Portfolios"

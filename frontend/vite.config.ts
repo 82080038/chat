@@ -4,6 +4,7 @@ import { fileURLToPath, URL } from "url";
 
 export default defineConfig({
   plugins: [react()],
+  base: "/dashboard/",
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -15,10 +16,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api": "http://localhost:8000",
-      "/auth": "http://localhost:8000",
-      "/health": "http://localhost:8000",
-      "/metrics": "http://localhost:8000",
+      "/api": "http://localhost:8080",
+      "/auth": "http://localhost:8080",
+      "/health": "http://localhost:8080",
+      "/metrics": "http://localhost:8080",
     },
   },
 });
