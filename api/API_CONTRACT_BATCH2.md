@@ -64,6 +64,7 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/financial-metrics` | List metrics | Bearer |
+| POST | `/financial-metrics` | Create metric | Bearer |
 | GET | `/financial-metrics/{id}` | Get metric | Bearer |
 | GET | `/issuers/{id}/metrics` | Get issuer metrics (latest) | Bearer |
 
@@ -80,6 +81,7 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/economic-indicators` | List indicators | Bearer |
+| POST | `/economic-indicators` | Create indicator | Bearer |
 | GET | `/economic-indicators/{id}` | Get indicator | Bearer |
 
 ```
@@ -95,6 +97,7 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/news` | List news items | Bearer |
+| POST | `/news` | Create news item | Bearer |
 | GET | `/news/{id}` | Get news item | Bearer |
 | GET | `/instruments/{id}/news` | Get news for instrument | Bearer |
 

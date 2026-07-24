@@ -11868,3 +11868,166 @@ Tidak boleh commit `.env` atau secret aktual ke repository.
 > Update: 24 Juli 2026 — Bagian 1-493 + Bagian 494-501 (Implementation Phase 1: IdentityService + ConfigService)
 >
 > TOTAL: 501 BAGIAN
+
+---
+
+# BAGIAN LANJUTAN 11 — IMPLEMENTATION PHASE 2
+
+---
+
+## 502. Phase 2 Implementation Scope
+
+Phase 2 mengimplementasikan dua service inti data:
+
+1. **MarketMasterService** — Security master: exchange, issuer, security, instrument, listing, corporate action, index master, market calendar
+2. **FundamentalService** — Financial data: financial statements (versioned, PIT-aware), financial metrics, economic indicators, news
+
+Kedua service mengikuti pattern Phase 1:
+- Interface → Service → Routes → Tests
+- Extends `BaseService` (UUID v7, pagination, UTC timestamps)
+- `ApiException` untuk error handling
+- Bearer JWT owner-only auth
+- Redis fail-open cache untuk read-heavy lookups
+
+---
+
+## 503. MarketMasterService — Implemented Capabilities
+
+### CRUD Operations
+
+| Entity | Create | Read | Update | List |
+|--------|--------|------|--------|------|
+| Exchange | ✅ | ✅ | ✅ | ✅ |
+| Issuer | ✅ | ✅ | ✅ | ✅ |
+| Security | — | ✅ | — | ✅ |
+| Instrument | ✅ | ✅ | ✅ | ✅ |
+| Listing | ✅ | ✅ | — | ✅ |
+| Corporate Action | ✅ | ✅ | — | ✅ |
+| Index | ✅ | ✅ | — | ✅ |
+| Calendar Entry | ✅ | ✅ | — | ✅ |
+
+### Lookup Methods
+
+- `getInstrumentByTicker(exchangeMic, ticker)` — ticker-based instrument lookup
+- `getInstrumentByIsin(isin)` — ISIN-based instrument lookup
+- `getListingByTicker(exchangeMic, ticker)` — direct listing lookup
+- `getListingByIsin(isin)` — direct listing lookup
+- `isTradingDay(exchangeId, date)` — calendar check with Redis cache
+- `getActiveListingsByExchange(exchangeId)` — active listings per exchange
+- `getIndexMembers(indexId, asOfDate)` — point-in-time index membership
+
+### Cache Strategy
+
+- Instrument detail cached 5 minutes (`instrument:{id}`)
+- Trading day check cached 1 hour (`trading_day:{exchangeId}:{date}`)
+- Cache invalidated on instrument update and listing create
+
+### Endpoints
+
+28 endpoints (previously 20, added 8 POST/PUT write endpoints):
+- Exchanges: 6 (GET list, POST, GET by id, PUT, GET calendar, GET instruments)
+- Issuers: 6 (GET list, POST, GET by id, PUT, GET securities, GET financials)
+- Securities: 2 (GET list, GET by id)
+- Instruments: 6 (GET list, POST, GET by id, PUT, GET listings, GET corporate-actions)
+- Listings: 5 (GET list, POST, GET by id, GET by ticker, GET by isin)
+- Corporate Actions: 3 (GET list, POST, GET by id)
+- Index Master: 4 (GET list, POST, GET by id, GET members)
+- Market Calendar: 3 (GET multi-exchange, GET by exchange, POST)
+
+---
+
+## 504. FundamentalService — Implemented Capabilities
+
+### Financial Statements
+
+- Create with line items (batch insert)
+- Get with lines
+- Revision workflow: create revised version, supersede original
+- Revision history retrieval
+- Latest statement lookup by issuer + type
+- PIT columns: `available_time`, `publication_date` preserved
+- Validation: statement_type enum, fiscal_period_type enum
+
+### Financial Metrics
+
+- Create derived metrics with `calculation_version` and `available_time`
+- List with filters (issuer, type, fiscal year)
+- Get issuer metrics (optionally filtered by metric type)
+
+### Economic Indicators
+
+- Create with revision support (revision_number starts at 1)
+- List with filters (country, indicator_type, period)
+- Get by country + indicator type (all revisions)
+
+### News
+
+- Create with instrument tagging (news_instrument junction)
+- List with filters (instrument_id, sentiment, search)
+- Get by instrument with limit
+
+### Endpoints
+
+17 endpoints (previously 10, added 7 POST endpoints):
+- Financial Statements: 6 (GET list, POST, GET by id, GET lines, GET revisions, POST revise)
+- Financial Metrics: 4 (GET list, POST, GET by id, GET issuer metrics)
+- Economic Indicators: 3 (GET list, POST, GET by id)
+- News: 4 (GET list, POST, GET by id, GET instrument news)
+
+---
+
+## 505. Phase 2 Schema — No Changes
+
+Physical DDL `003_market_master_schema.sql` (9 tables) dan `004_fundamental_schema.sql` (6 tables) tidak mengalami perubahan. Total MySQL tables tetap 56.
+
+---
+
+## 506. Phase 2 Validation Results
+
+```
+PHPUnit: 21 tests, 37 assertions — ALL PASS
+PSR-12: 0 violations (src/MarketMaster/, src/Fundamental/)
+PHP syntax: clean (all 8 new files)
+```
+
+Test breakdown:
+- Identity: 3 tests, 5 assertions
+- Config: 3 tests, 5 assertions
+- MarketMaster: 5 tests, 5 assertions
+- Fundamental: 6 tests, 6 assertions
+- Governance: 4 tests, 16 assertions
+
+---
+
+## 507. Phase 2 Updated Endpoint Count
+
+| Context | Phase 1 | Phase 2 | Total |
+|---------|---------|---------|-------|
+| Identity | 8 | — | 8 |
+| Config | 16 | — | 16 |
+| Market Master | — | 28 | 28 |
+| Fundamental | — | 17 | 17 |
+| Governance | — | — | (existing) |
+| **Total** | **24** | **45** | **69+** |
+
+Endpoint count sebelumnya 138 (blueprint design). Setelah implementasi Phase 2 dengan write endpoints tambahan, total implemented endpoints = 69 (Phase 1: 24 + Phase 2: 45). Endpoint tersisa untuk Phase 3+ (Analytics, Trading, Portfolio, Risk, Settlement).
+
+---
+
+## 508. Implementation Phase 2 — Final Statement
+
+> **MarketMasterService complete: exchange, issuer, security, instrument, listing, corporate action, index master, and market calendar CRUD with Redis-cached instrument lookups and trading day checks.**
+>
+> **FundamentalService complete: financial statement ingestion with versioned revisions and PIT columns, financial metrics with calculation versioning, economic indicators with revision tracking, and news with instrument tagging.**
+>
+> **MySQL physical model unchanged at 56 tables. PostgreSQL/TimescaleDB schemas remain for Phase 3.**
+>
+> **Next: Implementation Phase 3 — AnalyticsService (features, signals, forecasts, recommendations, scores, model registry, backtest).**
+
+---
+
+> Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
+> Semua informasi telah disimpan tanpa pengurangan.
+> Update: 24 Juli 2026 — Bagian 1-501 + Bagian 502-508 (Implementation Phase 2: MarketMasterService + FundamentalService)
+>
+> TOTAL: 508 BAGIAN

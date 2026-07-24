@@ -129,13 +129,43 @@ Events Consumed:
 
 Internal Interface:
   MarketMasterServiceInterface
+    - listExchanges(array $filters, int $page, int $perPage): array
+    - getExchange(string $id): ?array
+    - createExchange(array $data): array
+    - updateExchange(string $id, array $data): array
+    - getExchangeCalendar(string $exchangeId, string $fromDate, string $toDate): array
+    - getExchangeInstruments(string $exchangeId, int $page, int $perPage): array
+    - listIssuers(array $filters, int $page, int $perPage): array
+    - getIssuer(string $id): ?array
+    - createIssuer(array $data): array
+    - updateIssuer(string $id, array $data): array
+    - getIssuerSecurities(string $issuerId): array
+    - listSecurities(array $filters, int $page, int $perPage): array
+    - getSecurity(string $id): ?array
+    - listInstruments(array $filters, int $page, int $perPage): array
+    - createInstrument(array $data): array
     - getInstrumentById(string $id): ?array
+    - updateInstrument(string $id, array $data): array
     - getInstrumentByTicker(string $exchangeMic, string $ticker): ?array
     - getInstrumentByIsin(string $isin): ?array
-    - getActiveListingsByExchange(string $exchangeId): array
+    - listListings(array $filters, int $page, int $perPage): array
+    - getListing(string $id): ?array
+    - getListingByTicker(string $exchangeMic, string $ticker): ?array
+    - getListingByIsin(string $isin): ?array
+    - createListing(array $data): array
+    - getInstrumentListings(string $instrumentId): array
+    - listCorporateActions(array $filters, int $page, int $perPage): array
+    - getCorporateAction(string $id): ?array
+    - createCorporateAction(array $data): array
     - getCorporateActions(string $instrumentId, string $fromDate, string $toDate): array
+    - listIndices(array $filters, int $page, int $perPage): array
+    - getIndex(string $id): ?array
     - getIndexMembers(string $indexId, string $asOfDate): array
+    - createIndex(array $data): array
+    - getCalendar(string $exchangeId, string $fromDate, string $toDate): array
+    - createCalendarEntry(array $data): array
     - isTradingDay(string $exchangeId, string $date): bool
+    - getActiveListingsByExchange(string $exchangeId): array
 ```
 
 ### 3.3 FundamentalService
@@ -166,10 +196,24 @@ Events Consumed:
 
 Internal Interface:
   FundamentalServiceInterface
-    - getFinancialStatements(array $filters): array
+    - listFinancialStatements(array $filters, int $page, int $perPage): array
+    - createFinancialStatement(array $data): array
+    - getFinancialStatement(string $id): ?array
+    - getFinancialStatementLines(string $id): array
+    - getFinancialStatementRevisions(string $id): array
+    - reviseFinancialStatement(string $id, array $data): array
     - getLatestFinancialStatement(string $issuerId, string $type): ?array
-    - getFinancialMetrics(string $issuerId, string $metricType): array
+    - listFinancialMetrics(array $filters, int $page, int $perPage): array
+    - getFinancialMetric(string $id): ?array
+    - getIssuerMetrics(string $issuerId, ?string $metricType): array
+    - createFinancialMetric(array $data): array
+    - listEconomicIndicators(array $filters, int $page, int $perPage): array
+    - getEconomicIndicator(string $id): ?array
+    - createEconomicIndicator(array $data): array
     - getEconomicIndicators(string $country, string $indicatorType): array
+    - listNews(array $filters, int $page, int $perPage): array
+    - getNewsItem(string $id): ?array
+    - createNewsItem(array $data): array
     - getNewsByInstrument(string $instrumentId, int $limit): array
 ```
 

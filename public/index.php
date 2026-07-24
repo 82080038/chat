@@ -11,10 +11,14 @@ use Platform\Core\Http\Request;
 use Platform\Core\Http\Response;
 use Platform\Core\Http\Router;
 use Platform\Core\Middleware\AuthMiddleware;
+use Platform\Fundamental\FundamentalRoutes;
+use Platform\Fundamental\FundamentalService;
 use Platform\Governance\GovernanceRoutes;
 use Platform\Governance\GovernanceService;
 use Platform\Identity\IdentityRoutes;
 use Platform\Identity\IdentityService;
+use Platform\MarketMaster\MarketMasterRoutes;
+use Platform\MarketMaster\MarketMasterService;
 
 $app = Application::getInstance();
 
@@ -22,6 +26,8 @@ $app = Application::getInstance();
 $app->registerService('identity', new IdentityService());
 $app->registerService('config', new ConfigService());
 $app->registerService('governance', new GovernanceService());
+$app->registerService('market_master', new MarketMasterService());
+$app->registerService('fundamental', new FundamentalService());
 
 // Create router
 $router = new Router();
@@ -66,6 +72,8 @@ $router->get('/', function (Request $request): Response {
 // Register context routes
 IdentityRoutes::register($router);
 ConfigRoutes::register($router);
+MarketMasterRoutes::register($router);
+FundamentalRoutes::register($router);
 GovernanceRoutes::register($router);
 
 // Dispatch

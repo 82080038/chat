@@ -181,7 +181,9 @@ The application supports exactly one owner account. There are no tenants, additi
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/exchanges` | List exchanges | Bearer |
+| POST | `/exchanges` | Create exchange | Bearer |
 | GET | `/exchanges/{id}` | Get exchange | Bearer |
+| PUT | `/exchanges/{id}` | Update exchange | Bearer |
 | GET | `/exchanges/{id}/calendar` | Get market calendar | Bearer |
 | GET | `/exchanges/{id}/instruments` | List instruments on exchange | Bearer |
 
@@ -190,7 +192,9 @@ The application supports exactly one owner account. There are no tenants, additi
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/issuers` | List issuers | Bearer |
+| POST | `/issuers` | Create issuer | Bearer |
 | GET | `/issuers/{id}` | Get issuer | Bearer |
+| PUT | `/issuers/{id}` | Update issuer | Bearer |
 | GET | `/issuers/{id}/securities` | List issuer's securities | Bearer |
 | GET | `/issuers/{id}/financial-statements` | List issuer's financials | Bearer |
 
@@ -259,6 +263,7 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/listings` | List listings (filterable) | Bearer |
+| POST | `/listings` | Create listing | Bearer |
 | GET | `/listings/{id}` | Get listing | Bearer |
 | GET | `/listings/by-ticker/{exchange}/{ticker}` | Lookup by ticker | Bearer |
 | GET | `/listings/by-isin/{isin}` | Lookup by ISIN | Bearer |
@@ -268,6 +273,7 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/corporate-actions` | List corporate actions | Bearer |
+| POST | `/corporate-actions` | Create corporate action | Bearer |
 | GET | `/corporate-actions/{id}` | Get corporate action | Bearer |
 
 ### Index Master
@@ -275,6 +281,7 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/indices` | List indices | Bearer |
+| POST | `/indices` | Create index | Bearer |
 | GET | `/indices/{id}` | Get index | Bearer |
 | GET | `/indices/{id}/members` | Get index members (as of date) | Bearer |
 
@@ -308,6 +315,7 @@ Query Parameters:
 |--------|------|-------------|------|
 | GET | `/calendar` | Get calendar (multi-exchange) | Bearer |
 | GET | `/calendar/{exchangeId}` | Get exchange calendar | Bearer |
+| POST | `/calendar` | Create calendar entry | Bearer |
 
 ```
 Query Parameters:
