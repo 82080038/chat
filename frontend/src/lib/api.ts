@@ -95,9 +95,10 @@ export type Signal = {
   signal_id: string;
   instrument_id: string;
   signal_type: string;
-  action: string;
-  confidence: number;
-  status: string;
+  direction: string;
+  strength: string;
+  timeframe: string;
+  model_version: string;
   created_at: string;
 };
 

@@ -173,23 +173,23 @@ export default function Dashboard() {
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <Badge variant={sig.action === "BUY" ? "success" : sig.action === "SELL" ? "destructive" : "secondary"}>
-                            {sig.action}
+                          <Badge variant={sig.direction === "BULLISH" ? "success" : sig.direction === "BEARISH" ? "destructive" : "secondary"}>
+                            {sig.direction}
                           </Badge>
                           <span className="text-sm font-medium">
                             {sig.signal_type}
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {sig.instrument_id}
+                          {sig.timeframe} · {sig.model_version}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">
-                          {(sig.confidence * 100).toFixed(1)}%
+                          {parseFloat(sig.strength).toFixed(1)}%
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {sig.status}
+                          {sig.signal_type}
                         </p>
                       </div>
                     </div>
