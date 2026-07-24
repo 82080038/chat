@@ -49,7 +49,7 @@ final class RiskService extends BaseService implements RiskServiceInterface
               max_drawdown_pct, min_liquidity_days, status, created_at, updated_at)
              VALUES
              (:id, :name, :risk_tolerance, :max_single, :max_sector,
-              :max_beta, :max_var, :max_dd, :min_liq, :status, :now, :now)'
+              :max_beta, :max_var, :max_dd, :min_liq, :status, :now1, :now2)'
         );
         $stmt->execute([
             ':id' => $id,
@@ -62,7 +62,8 @@ final class RiskService extends BaseService implements RiskServiceInterface
             ':max_dd' => $data['max_drawdown_pct'] ?? null,
             ':min_liq' => $data['min_liquidity_days'] ?? null,
             ':status' => $data['status'] ?? 'ACTIVE',
-            ':now' => $now,
+            ':now1' => $now,
+            ':now2' => $now,
         ]);
         return $this->getRiskProfile($id);
     }
@@ -134,7 +135,7 @@ final class RiskService extends BaseService implements RiskServiceInterface
               time_horizon, confidence_level, status, effective_from, effective_until, created_at)
              VALUES
              (:id, :portfolio_id, :limit_type, :limit_value, :limit_unit,
-              :time_horizon, :confidence_level, :status, :now, :effective_until, :now)'
+              :time_horizon, :confidence_level, :status, :now1, :effective_until, :now2)'
         );
         $stmt->execute([
             ':id' => $id,
@@ -145,8 +146,9 @@ final class RiskService extends BaseService implements RiskServiceInterface
             ':time_horizon' => $data['time_horizon'] ?? null,
             ':confidence_level' => $data['confidence_level'] ?? null,
             ':status' => $data['status'] ?? 'ACTIVE',
-            ':now' => $now,
+            ':now1' => $now,
             ':effective_until' => $data['effective_until'] ?? null,
+            ':now2' => $now,
         ]);
         return $this->getRiskLimitById($id);
     }
@@ -226,8 +228,8 @@ final class RiskService extends BaseService implements RiskServiceInterface
              VALUES
              (:id, :portfolio_id, :assessment_type, :var_95, :var_99,
               :expected_shortfall, :portfolio_beta, :sharpe, :sortino,
-              :max_dd, :volatility, :concentration, :currency, :now,
-              :model_version, :now)'
+              :max_dd, :volatility, :concentration, :currency, :now1,
+              :model_version, :now2)'
         );
         $stmt->execute([
             ':id' => $id,
@@ -243,8 +245,9 @@ final class RiskService extends BaseService implements RiskServiceInterface
             ':volatility' => $data['volatility'] ?? null,
             ':concentration' => $data['concentration_index'] ?? null,
             ':currency' => $data['currency'] ?? null,
-            ':now' => $now,
+            ':now1' => $now,
             ':model_version' => $data['model_version'] ?? null,
+            ':now2' => $now,
         ]);
         return $this->getRiskAssessment($id);
     }

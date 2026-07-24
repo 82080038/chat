@@ -439,7 +439,7 @@ final class TradingService extends BaseService implements TradingServiceInterfac
               :instrument_id, :side, :order_type, :quantity, 0,
               :remaining, :limit_price, :stop_price, :time_in_force,
               :expire_at, NULL, :status, NULL,
-              :now, NULL, :now, :now)'
+              :now1, NULL, :now2, :now3)'
         );
         $stmt->execute([
             ':id' => $id,
@@ -457,7 +457,9 @@ final class TradingService extends BaseService implements TradingServiceInterfac
             ':time_in_force' => $data['time_in_force'] ?? 'DAY',
             ':expire_at' => $data['expire_at'] ?? null,
             ':status' => 'SUBMITTED',
-            ':now' => $now,
+            ':now1' => $now,
+            ':now2' => $now,
+            ':now3' => $now,
         ]);
         $stmt2 = $this->db->prepare(
             'UPDATE trading.order_intent SET status = :status WHERE order_intent_id = :id'

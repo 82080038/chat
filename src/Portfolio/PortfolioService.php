@@ -47,7 +47,7 @@ final class PortfolioService extends BaseService implements PortfolioServiceInte
               status, inception_date, benchmark_id, risk_profile_id, created_at, updated_at)
              VALUES
              (:id, :name, :description, :base_currency, :portfolio_type,
-              :status, :inception_date, :benchmark_id, :risk_profile_id, :now, :now)'
+              :status, :inception_date, :benchmark_id, :risk_profile_id, :now1, :now2)'
         );
         $stmt->execute([
             ':id' => $id,
@@ -59,7 +59,8 @@ final class PortfolioService extends BaseService implements PortfolioServiceInte
             ':inception_date' => $data['inception_date'] ?? null,
             ':benchmark_id' => $data['benchmark_id'] ?? null,
             ':risk_profile_id' => $data['risk_profile_id'] ?? null,
-            ':now' => $now,
+            ':now1' => $now,
+            ':now2' => $now,
         ]);
         return $this->getPortfolio($id);
     }
@@ -231,7 +232,7 @@ final class PortfolioService extends BaseService implements PortfolioServiceInte
               realized_pnl, unrealized_pnl, position_type, status, opened_at, as_of)
              VALUES
              (:id, :portfolio_id, :instrument_id, :quantity, :average_cost,
-              0, 0, :position_type, :status, :now, :now)'
+              0, 0, :position_type, :status, :now1, :now2)'
         );
         $stmt->execute([
             ':id' => $id,
@@ -241,7 +242,8 @@ final class PortfolioService extends BaseService implements PortfolioServiceInte
             ':average_cost' => $data['average_cost'] ?? null,
             ':position_type' => $data['position_type'] ?? 'LONG',
             ':status' => 'OPEN',
-            ':now' => $now,
+            ':now1' => $now,
+            ':now2' => $now,
         ]);
         return $this->getPositionById($id);
     }
@@ -280,13 +282,14 @@ final class PortfolioService extends BaseService implements PortfolioServiceInte
         $now = $this->now();
         $stmt = $this->db->prepare(
             'UPDATE portfolio.position
-             SET status = :status, closed_at = :now, as_of = :now,
+             SET status = :status, closed_at = :now1, as_of = :now2,
                  realized_pnl = :realized_pnl, unrealized_pnl = 0, quantity = 0
              WHERE position_id = :id'
         );
         $stmt->execute([
             ':status' => 'CLOSED',
-            ':now' => $now,
+            ':now1' => $now,
+            ':now2' => $now,
             ':realized_pnl' => $data['realized_pnl'] ?? $existing['realized_pnl'],
             ':id' => $positionId,
         ]);

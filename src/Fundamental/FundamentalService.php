@@ -126,11 +126,11 @@ final class FundamentalService extends BaseService implements FundamentalService
     {
         $stmt = $this->db->prepare(
             'SELECT * FROM fundamental.financial_statement
-             WHERE financial_statement_id = :id
-                OR revision_of = :id
+             WHERE financial_statement_id = :id1
+                OR revision_of = :id2
              ORDER BY version ASC'
         );
-        $stmt->execute([':id' => $id]);
+        $stmt->execute([':id1' => $id, ':id2' => $id]);
         return $stmt->fetchAll();
     }
 

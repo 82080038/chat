@@ -211,7 +211,7 @@ final class SettlementService extends BaseService implements SettlementServiceIn
              (:id, :portfolio_id, :reconciliation_type,
               :reconciliation_date, :internal_record_id, :broker_record_id,
               :internal_value, :broker_value, :discrepancy, :status,
-              :now, NULL, NULL, :now)'
+              :now1, NULL, NULL, :now2)'
         );
         $stmt->execute([
             ':id' => $id,
@@ -224,7 +224,8 @@ final class SettlementService extends BaseService implements SettlementServiceIn
             ':broker_value' => $data['broker_value'] ?? null,
             ':discrepancy' => $discrepancy,
             ':status' => $data['status'] ?? 'PENDING',
-            ':now' => $now,
+            ':now1' => $now,
+            ':now2' => $now,
         ]);
         return $this->getReconciliation($id);
     }

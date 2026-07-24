@@ -264,10 +264,10 @@ final class AnalyticsService extends BaseService implements AnalyticsServiceInte
         $now = $this->now();
         $stmt = $this->db->prepare(
             'UPDATE analytics.signal
-             SET invalidated_at = :now, invalidated_reason = :reason, valid_until = :now
+             SET invalidated_at = :now1, invalidated_reason = :reason, valid_until = :now2
              WHERE signal_id = :id'
         );
-        $stmt->execute([':now' => $now, ':reason' => $reason, ':id' => $id]);
+        $stmt->execute([':now1' => $now, ':now2' => $now, ':reason' => $reason, ':id' => $id]);
         return $this->getSignal($id);
     }
 

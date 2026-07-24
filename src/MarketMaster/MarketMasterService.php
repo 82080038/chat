@@ -187,7 +187,7 @@ final class MarketMasterService extends BaseService implements MarketMasterServi
               sector_code, industry_code, created_at, updated_at)
              VALUES
              (:id, :legal_name, :short_name, :country, :jurisdiction,
-              :lei, :status, :incorp_date, :sector, :industry, :now, :now)'
+              :lei, :status, :incorp_date, :sector, :industry, :now1, :now2)'
         );
         $stmt->execute([
             ':id' => $id,
@@ -200,7 +200,8 @@ final class MarketMasterService extends BaseService implements MarketMasterServi
             ':incorp_date' => $data['incorporation_date'] ?? null,
             ':sector' => $data['sector_code'] ?? null,
             ':industry' => $data['industry_code'] ?? null,
-            ':now' => $now,
+            ':now1' => $now,
+            ':now2' => $now,
         ]);
         return $this->getIssuer($id);
     }
@@ -676,13 +677,14 @@ final class MarketMasterService extends BaseService implements MarketMasterServi
              LEFT JOIN market_master.listing l ON l.instrument_id = im.instrument_id
                AND l.status = :status
              WHERE im.index_id = :index_id
-               AND im.effective_date <= :as_of
-               AND (im.end_date IS NULL OR im.end_date >= :as_of)
+               AND im.effective_date <= :as_of1
+               AND (im.end_date IS NULL OR im.end_date >= :as_of2)
              ORDER BY im.weight DESC'
         );
         $stmt->execute([
             ':index_id' => $indexId,
-            ':as_of' => $asOfDate,
+            ':as_of1' => $asOfDate,
+            ':as_of2' => $asOfDate,
             ':status' => 'ACTIVE',
         ]);
         return $stmt->fetchAll();
