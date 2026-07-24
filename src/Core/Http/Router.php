@@ -45,6 +45,11 @@ final class Router
         $this->addRoute('DELETE', $pattern, $handler, $middleware);
     }
 
+    public function patch(string $pattern, callable $handler, array $middleware = []): void
+    {
+        $this->addRoute('PATCH', $pattern, $handler, $middleware);
+    }
+
     public function addMiddleware(string $name, callable $middleware): void
     {
         $this->middleware[$name] = $middleware;

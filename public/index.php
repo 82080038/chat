@@ -73,7 +73,7 @@ $router->addMiddleware('bearer', [AuthMiddleware::class, 'bearer']);
 $router->addMiddleware('public', [AuthMiddleware::class, 'public']);
 
 // Health endpoints
-$router->get('/health', function (Request $request): Response {
+$router->get('/health', function (Request $request) use ($app): Response {
     return Response::ok([
         'status' => 'healthy',
         'timestamp' => date('c'),
@@ -96,7 +96,7 @@ $router->get('/health/live', function (Request $request): Response {
 });
 
 // Metrics endpoint
-$router->get('/metrics', function (Request $request): Response {
+$router->get('/metrics', function (Request $request) use ($app): Response {
     $app = Application::getInstance();
     return Response::ok([
         'info' => [
@@ -109,7 +109,7 @@ $router->get('/metrics', function (Request $request): Response {
 });
 
 // API info
-$router->get('/', function (Request $request): Response {
+$router->get('/', function (Request $request) use ($app): Response {
     return Response::ok([
         'name' => 'Capital Market Platform API',
         'version' => '1.0.0',

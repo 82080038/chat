@@ -37,13 +37,14 @@ final class PaperTradingService extends BaseService implements PaperTradingServi
         $sql = 'INSERT INTO paper_trading.paper_account
             (account_id, name, initial_cash, cash_balance, status, created_at)
             VALUES
-            (:id, :name, :cash, :cash, :status, :now)';
+            (:id, :name, :cash1, :cash2, :status, :now)';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             ':id' => $id,
             ':name' => $data['name'],
-            ':cash' => $data['initial_cash'],
+            ':cash1' => $data['initial_cash'],
+            ':cash2' => $data['initial_cash'],
             ':status' => 'ACTIVE',
             ':now' => $now,
         ]);
@@ -137,7 +138,7 @@ final class PaperTradingService extends BaseService implements PaperTradingServi
             VALUES
             (:id, :acct, :inst, :sym, :side,
              :otype, :qty, :price, :fprice, :status,
-             :signal, :now, :now)';
+             :signal, :now1, :now2)';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
@@ -152,7 +153,8 @@ final class PaperTradingService extends BaseService implements PaperTradingServi
             ':fprice' => $filledPrice,
             ':status' => 'FILLED',
             ':signal' => $data['signal_id'] ?? null,
-            ':now' => $now,
+            ':now1' => $now,
+            ':now2' => $now,
         ]);
 
         $this->updatePosition(
