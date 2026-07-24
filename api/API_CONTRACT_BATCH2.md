@@ -139,7 +139,9 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/signals` | List signals | Bearer |
+| POST | `/signals` | Create signal | Bearer |
 | GET | `/signals/{id}` | Get signal | Bearer |
+| POST | `/signals/{id}/invalidate` | Invalidate signal | Bearer |
 | GET | `/instruments/{id}/signals` | Get signals for instrument | Bearer |
 
 ```
@@ -178,6 +180,7 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/forecasts` | List forecasts | Bearer |
+| POST | `/forecasts` | Create forecast | Bearer |
 | GET | `/forecasts/{id}` | Get forecast | Bearer |
 | GET | `/instruments/{id}/forecasts` | Get forecasts for instrument | Bearer |
 
@@ -194,6 +197,7 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/recommendations` | List recommendations | Bearer |
+| POST | `/recommendations` | Create recommendation | Bearer |
 | GET | `/recommendations/{id}` | Get recommendation with signals & forecasts | Bearer |
 | GET | `/instruments/{id}/recommendations` | Get recommendations for instrument | Bearer |
 
@@ -236,6 +240,7 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/scores` | List scores | Bearer |
+| POST | `/scores` | Create score | Bearer |
 | GET | `/scores/{id}` | Get score | Bearer |
 | GET | `/instruments/{id}/scores` | Get scores for instrument | Bearer |
 

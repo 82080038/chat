@@ -254,11 +254,38 @@ Events Consumed:
 
 Internal Interface:
   AnalyticsServiceInterface
+    - listFeatures(array $filters, int $page, int $perPage): array
+    - createFeature(array $data): array
+    - getFeature(string $id): ?array
+    - updateFeature(string $id, array $data): array
+    - getFeatureValues(string $featureId, array $filters, int $page, int $perPage): array
+    - ingestFeatureValues(string $featureId, array $data): array
+    - listSignals(array $filters, int $page, int $perPage): array
+    - createSignal(array $data): array
+    - getSignal(string $id): ?array
     - getActiveSignals(string $instrumentId): array
-    - getLatestRecommendation(string $instrumentId): ?array
-    - getFeatureValues(string $featureId, string $instrumentId, string $from, string $to): array
+    - invalidateSignal(string $id, string $reason): array
+    - listForecasts(array $filters, int $page, int $perPage): array
+    - createForecast(array $data): array
+    - getForecast(string $id): ?array
     - getLatestForecast(string $instrumentId, string $targetVariable): ?array
-    - getScore(string $instrumentId, string $scoreType): ?array
+    - listRecommendations(array $filters, int $page, int $perPage): array
+    - createRecommendation(array $data): array
+    - getRecommendation(string $id): ?array
+    - getLatestRecommendation(string $instrumentId): ?array
+    - listScores(array $filters, int $page, int $perPage): array
+    - createScore(array $data): array
+    - getScore(string $id): ?array
+    - getInstrumentScores(string $instrumentId, ?string $scoreType): array
+    - listModels(array $filters, int $page, int $perPage): array
+    - createModel(array $data): array
+    - getModel(string $id): ?array
+    - updateModel(string $id, array $data): array
+    - listBacktests(array $filters, int $page, int $perPage): array
+    - createBacktest(array $data): array
+    - getBacktest(string $id): ?array
+    - getBacktestStatus(string $id): ?array
+    - updateBacktestResults(string $id, array $data): array
 ```
 
 ### 3.5 PortfolioService

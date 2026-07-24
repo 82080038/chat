@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use Platform\Analytics\AnalyticsRoutes;
+use Platform\Analytics\AnalyticsService;
 use Platform\Config\ConfigRoutes;
 use Platform\Config\ConfigService;
 use Platform\Core\Application;
@@ -28,6 +30,7 @@ $app->registerService('config', new ConfigService());
 $app->registerService('governance', new GovernanceService());
 $app->registerService('market_master', new MarketMasterService());
 $app->registerService('fundamental', new FundamentalService());
+$app->registerService('analytics', new AnalyticsService());
 
 // Create router
 $router = new Router();
@@ -74,6 +77,7 @@ IdentityRoutes::register($router);
 ConfigRoutes::register($router);
 MarketMasterRoutes::register($router);
 FundamentalRoutes::register($router);
+AnalyticsRoutes::register($router);
 GovernanceRoutes::register($router);
 
 // Dispatch
