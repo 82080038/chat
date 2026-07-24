@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Platform\Governance;
 
 use Platform\Core\BaseService;
+use Platform\Core\Exceptions\ApiException;
 
 final class GovernanceService extends BaseService implements GovernanceServiceInterface
 {
@@ -31,6 +32,16 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
             ':correlation_id' => $data['correlation_id'] ?? null,
             ':created_at' => $this->now(),
         ]);
+    }
+
+    public function getAuditLog(string $id): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT * FROM governance.audit_log WHERE audit_log_id = :id'
+        );
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
     }
 
     public function requestApproval(
@@ -363,5 +374,140 @@ final class GovernanceService extends BaseService implements GovernanceServiceIn
         ]);
 
         return $this->getWorkflow($workflowId);
+    }
+
+    public function updatePolicy(string $id, array $data): array
+    {
+        $existing = $this->getPolicy($id);
+        if ($existing === null) {
+            throw new ApiException(404, 'POLICY_NOT_FOUND', 'Policy was not found');
+        }
+        $newId = $this->uuid();
+        $newVersion = (int) $existing['version'] + 1;
+        $now = $this->now();
+        $stmt = $this->db->prepare(
+            'INSERT INTO governance.policy
+             (policy_id, policy_type, name, description, rules, priority,
+              effective_from, effective_until, status, version, created_at)
+             VALUES
+             (:id, :policy_type, :name, :description, :rules, :priority,
+              :effective_from, :effective_until, :status, :version, :now)'
+        );
+        $stmt->execute([
+            ':id' => $newId,
+            ':policy_type' => $data['policy_type'] ?? $existing['policy_type'],
+            ':name' => $data['name'] ?? $existing['name'],
+            ':description' => $data['description'] ?? $existing['description'],
+            ':rules' => isset($data['rules'])
+                ? json_encode($data['rules'])
+                : ($existing['rules'] ? json_encode($existing['rules']) : null),
+            ':priority' => $data['priority'] ?? $existing['priority'],
+            ':effective_from' => $now,
+            ':effective_until' => $data['effective_until'] ?? null,
+            ':status' => $data['status'] ?? 'ACTIVE',
+            ':version' => $newVersion,
+            ':now' => $now,
+        ]);
+        $supersede = $this->db->prepare(
+            'UPDATE governance.policy SET status = :status, effective_until = :now
+             WHERE policy_id = :id'
+        );
+        $supersede->execute([
+            ':status' => 'SUPERSEDED',
+            ':now' => $now,
+            ':id' => $id,
+        ]);
+        return $this->getPolicy($newId);
+    }
+
+    public function listPolicyEvaluations(string $policyId, int $page, int $perPage): array
+    {
+        [$page, $perPage, $offset] = $this->parsePagination(
+            ['page' => $page, 'per_page' => $perPage]
+        );
+        $clause = 'WHERE policy_id = :policy_id';
+        $params = [':policy_id' => $policyId];
+        $total = $this->countRows('governance.policy_evaluation', $clause, $params);
+        $stmt = $this->db->prepare(
+            "SELECT * FROM governance.policy_evaluation {$clause} "
+            . "ORDER BY evaluated_at DESC LIMIT {$perPage} OFFSET {$offset}"
+        );
+        $stmt->execute($params);
+        return $this->paginate($stmt->fetchAll(), $total, $page, $perPage);
+    }
+
+    public function listWorkflows(array $filters, int $page, int $perPage): array
+    {
+        [$page, $perPage, $offset] = $this->parsePagination(
+            ['page' => $page, 'per_page' => $perPage]
+        );
+        $where = [];
+        $params = [];
+        if (isset($filters['status'])) {
+            $where[] = 'status = :status';
+            $params[':status'] = $filters['status'];
+        }
+        if (isset($filters['workflow_type'])) {
+            $where[] = 'workflow_type = :workflow_type';
+            $params[':workflow_type'] = $filters['workflow_type'];
+        }
+        if (isset($filters['entity_type'])) {
+            $where[] = 'entity_type = :entity_type';
+            $params[':entity_type'] = $filters['entity_type'];
+        }
+        $clause = $where === [] ? '' : 'WHERE ' . implode(' AND ', $where);
+        $total = $this->countRows('governance.workflow', $clause, $params);
+        $stmt = $this->db->prepare(
+            "SELECT * FROM governance.workflow {$clause} "
+            . "ORDER BY initiated_at DESC LIMIT {$perPage} OFFSET {$offset}"
+        );
+        $stmt->execute($params);
+        return $this->paginate($stmt->fetchAll(), $total, $page, $perPage);
+    }
+
+    public function cancelWorkflow(string $id, string $reason): array
+    {
+        $existing = $this->getWorkflow($id);
+        if ($existing === null) {
+            throw new ApiException(404, 'WORKFLOW_NOT_FOUND', 'Workflow was not found');
+        }
+        $now = $this->now();
+        $stmt = $this->db->prepare(
+            'UPDATE governance.workflow
+             SET status = :status, completed_at = :now,
+                 metadata = JSON_SET(
+                     COALESCE(metadata, JSON_OBJECT()),
+                     :reason_key, :reason
+                 )
+             WHERE workflow_id = :id'
+        );
+        $stmt->execute([
+            ':status' => 'CANCELLED',
+            ':now' => $now,
+            ':reason_key' => '$.cancel_reason',
+            ':reason' => $reason,
+            ':id' => $id,
+        ]);
+        return $this->getWorkflow($id);
+    }
+
+    public function listWorkflowSteps(string $workflowId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT * FROM governance.workflow_step
+             WHERE workflow_id = :id
+             ORDER BY step_number ASC'
+        );
+        $stmt->execute([':id' => $workflowId]);
+        return $stmt->fetchAll();
+    }
+
+    // ─── Private Helpers ─────────────────────────────────────────────────
+
+    private function countRows(string $table, string $clause = '', array $params = []): int
+    {
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM {$table} {$clause}");
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
     }
 }

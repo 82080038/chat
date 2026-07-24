@@ -25,6 +25,7 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/approvals` | List approvals (pending/all) | Bearer |
+| POST | `/approvals` | Request approval | Bearer |
 | GET | `/approvals/{id}` | Get approval detail | Bearer |
 | POST | `/approvals/{id}/approve` | Approve request | Bearer |
 | POST | `/approvals/{id}/reject` | Reject request | Bearer |
@@ -55,10 +56,10 @@ Query Parameters:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/workflows` | List workflows | Bearer |
+| POST | `/workflows` | Start workflow | Bearer |
 | GET | `/workflows/{id}` | Get workflow with steps | Bearer |
 | GET | `/workflows/{id}/steps` | List workflow steps | Bearer |
 | POST | `/workflows/{id}/steps/{stepId}/complete` | Complete workflow step | Bearer |
-| POST | `/workflows/{id}/steps/{stepId}/skip` | Skip workflow step | Bearer |
 | POST | `/workflows/{id}/cancel` | Cancel workflow | Bearer |
 
 ### Policies

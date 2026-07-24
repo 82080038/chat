@@ -532,12 +532,25 @@ Events Consumed:
 Internal Interface:
   GovernanceServiceInterface
     - auditLog(array $data): void
+    - getAuditLog(string $id): ?array
+    - listAuditLogs(array $filters, int $page, int $perPage): array
     - requestApproval(string $entityType, string $entityId, string $approvalType): array
     - approve(string $approvalId): array
     - reject(string $approvalId, string $reason): array
+    - getApproval(string $id): ?array
+    - listApprovals(array $filters, int $page, int $perPage): array
+    - createPolicy(array $data): array
+    - getPolicy(string $id): ?array
+    - updatePolicy(string $id, array $data): array
+    - listPolicies(array $filters, int $page, int $perPage): array
     - evaluatePolicy(string $policyId, string $entityType, string $entityId): array
-    - evaluateAllPolicies(string $entityType, string $entityId): array
+    - listPolicyEvaluations(string $policyId, int $page, int $perPage): array
     - startWorkflow(string $type, string $entityType, string $entityId): array
+    - getWorkflow(string $id): ?array
+    - listWorkflows(array $filters, int $page, int $perPage): array
+    - cancelWorkflow(string $id, string $reason): array
+    - listWorkflowSteps(string $workflowId): array
+    - completeWorkflowStep(string $workflowId, string $stepId, array $result): array
 ```
 
 ### 3.10 ConfigService

@@ -12463,3 +12463,108 @@ Test breakdown:
 > Update: 24 Juli 2026 — Bagian 1-522 + Bagian 523-529 (Implementation Phase 5: TradingService + SettlementService)
 >
 > TOTAL: 529 BAGIAN
+
+---
+
+# BAGIAN LANJUTAN 15 — GOVERNANCE FIX & INTEGRATION TESTS
+
+---
+
+## 530. GovernanceService Bug Fixes & Missing Methods
+
+### Bugs Fixed
+- **`getAuditLog`** — was filtering by `entity_id` instead of `audit_log_id`, never found records by ID
+- **`listWorkflows`** — was returning empty array stub, now queries DB with filters
+- **`cancelWorkflow`** — was returning hardcoded `['status' => 'CANCELLED']`, now updates DB with reason in metadata
+
+### Missing Methods Added
+- `getAuditLog(string $id): ?array` — fetch by primary key
+- `updatePolicy(string $id, array $data): array` — creates new version, supersedes old
+- `listPolicyEvaluations(string $policyId, int $page, int $perPage): array`
+- `listWorkflows(array $filters, int $page, int $perPage): array`
+- `cancelWorkflow(string $id, string $reason): array`
+- `listWorkflowSteps(string $workflowId): array`
+
+### Missing Routes Added
+- `POST /approvals` — requestApproval
+- `POST /workflows` — startWorkflow
+- `GET /workflows/{id}/steps` — listWorkflowSteps
+- `PUT /policies/{id}` — updatePolicy (new version)
+- `GET /policies/{id}/evaluations` — listPolicyEvaluations
+
+### Routes Fixed
+- `getAuditLog` route now calls `service->getAuditLog()` instead of `listAuditLogs`
+- `cancelWorkflow` route now passes reason to `service->cancelWorkflow()`
+- `listWorkflows` route now queries DB with filters and pagination
+- `service()` helper throws `ApiException` instead of silently creating new instance
+
+### GovernanceServiceInterface Updated
+From 14 methods to 20 methods, matching all implemented service methods.
+
+---
+
+## 531. Integration Tests — Mock PDO Approach
+
+Karena hanya `pdo_mysql` yang tersedia (tidak ada SQLite driver), integration tests menggunakan custom MockPdo yang mensimulasikan operasi database in-memory.
+
+### MockPdo Features
+- INSERT: parses column list + VALUES placeholders, maps to params
+- UPDATE: parses SET assignments (both `:param` and literal values), WHERE conditions
+- SELECT: supports WHERE (multiple conditions), LIMIT/OFFSET, COALESCE(SUM()) aggregate
+- COUNT: supports WHERE conditions
+
+### Test Coverage (12 integration tests)
+- **Governance**: audit log CRUD, approval lifecycle, policy versioning, workflow cancel
+- **Trading**: broker CRUD, decision lifecycle, decision override, order intent approval, execution updates order fill
+- **Settlement**: settlement create + process, reconciliation resolve with discrepancy check, pending filter
+
+---
+
+## 532. Updated Validation Results
+
+```
+PHPUnit: 60 tests, 118 assertions — ALL PASS
+PSR-12: 0 violations
+PHP syntax: clean
+```
+
+Test breakdown:
+- Identity: 3 tests, 5 assertions
+- Config: 3 tests, 5 assertions
+- MarketMaster: 5 tests, 5 assertions
+- Fundamental: 6 tests, 6 assertions
+- Analytics: 6 tests, 6 assertions
+- Risk: 4 tests, 4 assertions
+- Portfolio: 5 tests, 5 assertions
+- Trading: 5 tests, 5 assertions
+- Settlement: 2 tests, 2 assertions
+- Governance: 4 tests, 16 assertions
+- Integration: 12 tests, 53 assertions (NEW)
+- Router: 1 test, 7 assertions
+- Core: 2 tests, 7 assertions
+
+---
+
+## 533. Updated Endpoint Count (Post-Governance Fix)
+
+| Context | Endpoints | Notes |
+|---------|-----------|-------|
+| Identity | 8 | Phase 1 |
+| Config | 16 | Phase 1 |
+| Market Master | 28 | Phase 2 |
+| Fundamental | 17 | Phase 2 |
+| Analytics | 31 | Phase 3 |
+| Risk | 13 | Phase 4 |
+| Portfolio | 16 | Phase 4 |
+| Trading | 20 | Phase 5 |
+| Settlement | 7 | Phase 5 |
+| Governance | 18 | Fixed (+4 routes) |
+| **Total** | **174** | |
+
+---
+
+> Dokumen ini adalah MASTER BLUEPRINT lengkap untuk pembangunan aplikasi.
+> Semua informasi telah disimpan tanpa pengurangan.
+> Update: 24 Juli 2026 — Bagian 1-529 + Bagian 530-533 (Governance Fix & Integration Tests)
+>
+> TOTAL: 533 BAGIAN

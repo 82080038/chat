@@ -209,6 +209,43 @@ Query Parameters (list):
 |--------|------|-------------|------|
 | GET | `/executions` | List executions | Bearer |
 | GET | `/executions/{id}` | Get execution detail | Bearer |
+| POST | `/executions` | Record execution (manual) | Bearer |
+
+#### POST /executions
+
+```json
+// Request
+{
+  "order_id": "0192a3ba-...",
+  "instrument_id": "0192a3b5-...",
+  "fill_quantity": 1000,
+  "fill_price": 4975.00,
+  "currency": "IDR",
+  "commission": 4975,
+  "fees": 500,
+  "taxes": 0,
+  "broker_execution_id": "BRK-EXE-001"
+}
+
+// Response 201
+{
+  "data": {
+    "execution_id": "0192a3bb-...",
+    "execution_ref": "EXE-20260724-00001",
+    "order_id": "0192a3ba-...",
+    "fill_quantity": 1000,
+    "fill_price": 4975.00,
+    "fill_value": 4975000,
+    "commission": 4975,
+    "fees": 500,
+    "taxes": 0,
+    "net_value": 4980475,
+    "currency": "IDR",
+    "status": "PENDING_SETTLEMENT",
+    "executed_at": "2026-07-24T06:15:10.000000Z"
+  }
+}
+```
 
 ---
 
@@ -220,7 +257,9 @@ Query Parameters (list):
 |--------|------|-------------|------|
 | GET | `/settlements` | List settlements | Bearer |
 | GET | `/settlements/{id}` | Get settlement detail | Bearer |
-| GET | `/portfolios/{id}/settlements` | List portfolio settlements | Bearer |
+| GET | `/portfolios/{id}/settlements` | List portfolio pending settlements | Bearer |
+| POST | `/settlements` | Create settlement record | Bearer |
+| POST | `/settlements/{id}/process` | Process settlement (mark SETTLED) | Bearer |
 
 ```
 Query Parameters (list):
@@ -236,6 +275,7 @@ Query Parameters (list):
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/reconciliations` | List reconciliation records | Bearer |
+| POST | `/reconciliations` | Create reconciliation record | Bearer |
 | GET | `/reconciliations/{id}` | Get reconciliation detail | Bearer |
 | POST | `/reconciliations/{id}/resolve` | Resolve mismatch | Bearer |
 | GET | `/portfolios/{id}/reconciliations` | List portfolio reconciliations | Bearer |
