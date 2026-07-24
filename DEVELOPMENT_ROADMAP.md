@@ -5,7 +5,7 @@
 
 ## IMPLEMENTATION STATUS — Synced with MASTER_BLUEPRINT section 536
 
-**Last updated:** 24 Juli 2026 (CYCLE-001 Docker setup)
+**Last updated:** 24 Juli 2026 (E2E testing + frontend fixes)
 
 ### Backend Services: 17/17 Complete
 
@@ -46,11 +46,29 @@
 
 ```
 PHPUnit: 150 tests, 279 assertions — ALL PASS
+Playwright E2E: 7 tests — ALL PASS (login, quick login, dashboard, navigation, API calls, manual login, logout)
 PSR-12: 0 violations on new files (1 pre-existing in ConfigServiceTest)
 Total endpoints: 228 (224 service + 4 cross-cutting)
-MySQL tables: 72 (schema designed, migrations not yet applied)
+MySQL tables: 72 (migrations applied, all schemas created)
 Frontend: React 18 + Vite 5 + TailwindCSS 3, build output public/dashboard/
+E2E API calls verified: 7/7 endpoints return 200 (auth/login, auth/me, health, metrics, signals, portfolios, alerts)
 ```
+
+### Frontend: ✅ Working
+- React SPA served from /dashboard/ (Vite base: /dashboard/)
+- Login page with Quick Login (Dev) button
+- Dashboard: health status, services count, portfolios, signals, alerts
+- API client: unwraps { data: ... } envelope automatically
+- Auth: JWT stored in localStorage, auto-attached to requests
+- PHP router: public/router.php handles SPA fallback + API routing
+
+### Bug Fixes Applied (24 Jul 2026)
+- PDO duplicate named params: Fixed across 7 service files (MariaDB compatibility)
+- Vite base path: /assets/ → /dashboard/assets/
+- React Router basename: set to /dashboard
+- API response unwrapping: extract data from { data: ... } envelope
+- Dashboard /metrics: fetch services_registered from /metrics not /health
+- PHP router: added public/router.php for SPA + API coexistence
 
 ### Deployment: ✅ Ready
 - Production Dockerfile (multi-stage, opcache, no-dev)

@@ -2,157 +2,317 @@
 
 > Global & Indonesia Capital Market Intelligence, Decision, Risk & Execution Platform
 >
-> Personal single-owner application. It is not multi-tenant and has no user, role, or permission management.
+> Personal single-owner application. Not multi-tenant, no user/role/permission management.
 
-## Quick Start
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | PHP 8.2+ (Modular Monolith, no framework) |
+| Frontend | React 18 + TypeScript + Vite + TailwindCSS + shadcn/ui |
+| Database | MySQL 8+ / MariaDB 10.6+ (transactional) |
+| Cache | Redis 7+ (fail-open if unavailable) |
+| Messaging | RabbitMQ (optional) |
+| Storage | S3-compatible Object Storage (optional) |
+| Testing | PHPUnit (backend) + Playwright (E2E) |
+| Deployment | Docker + Kubernetes + Prometheus/Grafana |
+
+## Prerequisites
+
+- **PHP 8.2+** with extensions: `pdo`, `pdo_mysql`, `json`, `mbstring`, `openssl`
+- **MySQL 8+** or **MariaDB 10.6+** (XAMPP works)
+- **Redis** (optional — app fails open if unavailable)
+- **Composer 2+**
+- **Node.js 18+** and **npm** (for frontend)
+- **Git**
+
+## Quick Start (New Machine Setup)
+
+### 1. Clone & Install
 
 ```bash
-# 1. Install dependencies
+git clone https://github.com/82080038/chat.git capital-market-platform
+cd capital-market-platform
+
+# Backend dependencies
 composer install
 
-# 2. Copy environment file
-cp .env.example .env
+# Frontend dependencies
+cd frontend && npm install && cd ..
 
-# Generate secrets, then place the output in .env
-php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
-php -r "echo base64_encode(random_bytes(32)), PHP_EOL;"
-
-# 3. Run database migrations
-./database/migrate.sh up
-
-# 4. Seed default data
-./database/migrate.sh seed
-
-# 5. Start development server
-php -S localhost:8000 -t public/
+# Playwright (E2E tests)
+npm install
 ```
 
-## Architecture
+### 2. Configure Environment
 
-- **Access model**: One owner account with password + JWT
-- **Backend**: PHP 8.2+ (Modular Monolith)
-- **Database**: MySQL 8+ (transactional) + PostgreSQL/TimescaleDB (time series)
-- **Cache**: Redis
-- **Messaging**: RabbitMQ
-- **Storage**: S3-compatible Object Storage
+```bash
+cp .env.example .env
+
+# Generate JWT secret and encryption key
+php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"      # → JWT_SECRET
+php -r "echo base64_encode(random_bytes(32)), PHP_EOL;" # → APP_ENCRYPTION_KEY
+
+# Edit .env with your values. Key settings:
+# DB_HOST=127.0.0.1
+# DB_PORT=3306
+# DB_NAME=platform
+# DB_USER=root
+# DB_PASS=     (your MySQL password)
+# JWT_SECRET=<generated>
+# APP_ENCRYPTION_KEY=<generated>
+```
+
+### 3. Database Setup
+
+```bash
+# Run all migrations (creates database, schemas, tables)
+./database/migrate.sh up
+
+# Seed default data (exchanges, instruments, etc.)
+./database/migrate.sh seed
+```
+
+**Note:** Migration `011_postgresql_timescaledb_schema.sql` is PostgreSQL-only and will be skipped on MySQL. This is expected.
+
+### 4. Create Owner Account (One-Time Setup)
+
+```bash
+curl -X POST http://localhost:8080/auth/setup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "owner@platform.local",
+    "password": "YourP@ssword123",
+    "legal_name": "Owner Name"
+  }'
+```
+
+**Password policy:** Min 8 chars, must include uppercase, lowercase, digit, and special character.
+
+### 5. Build Frontend
+
+```bash
+cd frontend && npm run build && cd ..
+# Output goes to public/dashboard/ (served by PHP)
+```
+
+### 6. Start Development Server
+
+```bash
+# Using PHP built-in server with SPA router:
+php -S localhost:8080 -t public public/router.php
+
+# Or without SPA routing (API only):
+php -S localhost:8080 -t public
+```
+
+### 7. Access the Application
+
+| URL | Description |
+|-----|-------------|
+| `http://localhost:8080/dashboard/` | Frontend dashboard (React SPA) |
+| `http://localhost:8080/dashboard/login` | Login page (has Quick Login button for dev) |
+| `http://localhost:8080/health` | Health check |
+| `http://localhost:8080/metrics` | Platform metrics |
+| `http://localhost:8080/auth/login` | API: Login |
+| `http://localhost:8080/auth/me` | API: Current owner info |
+
+**Dev credentials:** `owner@platform.local` / `Test@1234567`
+
+## Running Tests
+
+```bash
+# Backend unit tests (150 tests, 279 assertions)
+vendor/bin/phpunit
+
+# E2E Playwright tests (7 tests)
+npx playwright test
+
+# Code style check
+composer sniff
+```
 
 ## Project Structure
 
 ```
-├── composer.json
-├── .env.example
-├── public/
-│   └── index.php              # Application entry point
-├── src/
-│   ├── Core/
-│   │   ├── Application.php
-│   │   ├── BaseService.php
-│   │   ├── Database/
-│   │   │   └── MySqlConnection.php
-│   │   ├── Http/
-│   │   │   ├── Request.php
-│   │   │   ├── Response.php
-│   │   │   ├── Router.php
-│   │   │   └── RequestParamsTrait.php
-│   │   ├── Cache/
-│   │   │   ├── CacheStoreInterface.php
-│   │   │   └── RedisCacheStore.php
-│   │   ├── Exceptions/
-│   │   │   └── ApiException.php
-│   │   └── Middleware/
-│   │       └── AuthMiddleware.php
-│   ├── Identity/
-│   │   ├── IdentityServiceInterface.php
-│   │   ├── IdentityService.php
-│   │   └── IdentityRoutes.php
-│   ├── Config/
-│   │   ├── ConfigServiceInterface.php
-│   │   ├── ConfigService.php
-│   │   └── ConfigRoutes.php
-│   ├── MarketMaster/
-│   │   ├── MarketMasterServiceInterface.php
-│   │   ├── MarketMasterService.php
-│   │   └── MarketMasterRoutes.php
-│   ├── Fundamental/
-│   │   ├── FundamentalServiceInterface.php
-│   │   ├── FundamentalService.php
-│   │   └── FundamentalRoutes.php
-│   ├── Analytics/
-│   │   ├── AnalyticsServiceInterface.php
-│   │   ├── AnalyticsService.php
-│   │   └── AnalyticsRoutes.php
-│   ├── Risk/
-│   │   ├── RiskServiceInterface.php
-│   │   ├── RiskService.php
-│   │   └── RiskRoutes.php
-│   ├── Portfolio/
-│   │   ├── PortfolioServiceInterface.php
-│   │   ├── PortfolioService.php
-│   │   └── PortfolioRoutes.php
-│   ├── Trading/
-│   │   ├── TradingServiceInterface.php
-│   │   ├── TradingService.php
-│   │   └── TradingRoutes.php
-│   ├── Settlement/
-│   │   ├── SettlementServiceInterface.php
-│   │   ├── SettlementService.php
-│   │   └── SettlementRoutes.php
-│   └── Governance/
-│       ├── GovernanceServiceInterface.php
-│       ├── GovernanceService.php
-│       └── GovernanceRoutes.php
+├── composer.json                 # PHP dependencies
+├── package.json                  # Playwright (E2E tests)
+├── playwright.config.ts          # Playwright config
+├── .env.example                  # Environment template
+├── .env.production               # Production env template
+├── .dockerignore
+├── .gitignore
+│
+├── public/                       # Web root
+│   ├── index.php                 # API entry point (registers all services)
+│   ├── router.php                # PHP dev server router (SPA + API)
+│   └── dashboard/                # Built frontend (generated by vite build)
+│       ├── index.html
+│       └── assets/
+│
+├── src/                          # PHP backend (64 files, 17 services)
+│   ├── Core/                     # Framework core
+│   │   ├── Application.php       # Service container
+│   │   ├── BaseService.php       # Base class (uuid, now, paginate)
+│   │   ├── Database/MySqlConnection.php
+│   │   ├── Http/Router.php       # GET/POST/PUT/PATCH/DELETE routing
+│   │   ├── Http/Request.php
+│   │   ├── Http/Response.php
+│   │   ├── Cache/RedisCacheStore.php   # Fail-open cache
+│   │   ├── Exceptions/ApiException.php
+│   │   └── Middleware/AuthMiddleware.php  # JWT verification
+│   ├── Identity/                 # Owner auth, JWT, sessions, setup
+│   ├── Config/                   # Versioned config, encryption, feature flags
+│   ├── MarketMaster/             # Exchanges, instruments, listings, issuers
+│   ├── Fundamental/              # Financial statements, ratios, estimates
+│   ├── Analytics/                # Signals, forecasts, OHLCV data
+│   ├── Risk/                     # Risk profiles, limits, assessments, events
+│   ├── Portfolio/                # Portfolios, positions, cash, transactions
+│   ├── Trading/                  # Brokers, orders, intents, broker adapters
+│   ├── Settlement/               # Settlements, reconciliations
+│   ├── Governance/               # Policies, audit logs
+│   ├── Alert/                    # Price/signal/risk alerts
+│   ├── Backtesting/              # Strategy backtests, metrics
+│   ├── PaperTrading/             # Simulated accounts, orders, positions
+│   ├── AIEngine/                 # Sentiment, pattern, anomaly detection
+│   ├── DataIngestion/            # Data sources, ingestion jobs
+│   └── Valuation/                # DCF, relative valuation models
+│
+├── frontend/                     # React SPA
+│   ├── package.json
+│   ├── vite.config.ts            # base: /dashboard/, proxy to :8080
+│   ├── tailwind.config.js
+│   ├── tsconfig.json
+│   └── src/
+│       ├── main.tsx              # Router with basename=/dashboard
+│       ├── pages/Login.tsx       # Login + Quick Login (Dev)
+│       ├── pages/Dashboard.tsx   # Main dashboard
+│       ├── components/           # UI components (shadcn/ui)
+│       └── lib/
+│           ├── api.ts            # HTTP client (unwraps { data: ... } envelope)
+│           └── auth.tsx          # Auth context (login, logout, JWT storage)
+│
 ├── database/
-│   ├── migrate.sh
-│   └── migrations/
+│   ├── migrate.sh                # Migration runner (up/down/seed)
+│   └── migrations/               # 20 SQL files (001-020)
 │       ├── 001_create_database_and_schemas.sql
 │       ├── 002_identity_schema.sql
-│       ├── ... (010_config_schema.sql)
-│       ├── 011_postgresql_timescaledb_schema.sql
+│       ├── ...
+│       ├── 011_postgresql_timescaledb_schema.sql  # PG only, skipped on MySQL
 │       ├── 012_seed_data.sql
-│       └── 013_drop_all.sql
-├── api/
+│       └── 020_ai_engine_schema.sql
+│
+├── tests/                        # PHPUnit + Playwright
+│   ├── Identity/                 # Service unit tests
+│   ├── Config/
+│   ├── MarketMaster/
+│   ├── ...
+│   ├── PaperTrading/
+│   ├── AIEngine/
+│   ├── e2e-simulation.spec.ts    # Playwright E2E tests
+│   └── screenshots/              # E2E test screenshots
+│
+├── docker/                       # Docker configs
+│   ├── Dockerfile.production
+│   ├── docker-compose.production.yml
+│   └── php-init.sh
+│
+├── k8s/                          # Kubernetes manifests
+│   ├── namespace.yaml
+│   ├── configmap.yaml
+│   ├── secrets.yaml
+│   ├── app-deployment.yaml
+│   ├── mysql-statefulset.yaml
+│   ├── redis-deployment.yaml
+│   ├── ingress.yaml
+│   └── monitoring.yaml
+│
+├── monitoring/                   # Prometheus + Grafana
+│   ├── prometheus.yml
+│   ├── grafana-datasource.yml
+│   └── grafana-dashboard.json
+│
+├── docs/
+│   └── API_REFERENCE.md          # Full API reference
+│
+├── api/                          # API contracts & specs
 │   ├── API_CONTRACT.md
 │   ├── API_CONTRACT_BATCH2.md
 │   ├── API_CONTRACT_BATCH3.md
 │   ├── API_CONTRACT_BATCH4.md
 │   ├── API_CONTRACT_BATCH5.md
 │   └── SERVICE_BOUNDARY_SPEC.md
-├── tests/
-│   ├── Identity/
-│   ├── Config/
-│   ├── MarketMaster/
-│   ├── Fundamental/
-│   ├── Analytics/
-│   ├── Risk/
-│   ├── Portfolio/
-│   ├── Trading/
-│   ├── Settlement/
-│   └── Governance/
-├── MASTER_BLUEPRINT.md         # Complete blueprint (501 sections)
-└── DEVELOPMENT_ROADMAP.md
+│
+├── MASTER_BLUEPRINT.md           # Complete system blueprint (501 sections)
+├── DEVELOPMENT_ROADMAP.md        # Development progress tracker
+└── PROMPTING_CYCLE.md            # Development cycle history
 ```
 
-## API Endpoints
+## Services (17 Registered)
 
-Base URL: `http://localhost:8000/api/v1`
+| # | Service | Endpoints | Description |
+|---|---------|-----------|-------------|
+| 1 | Identity | /auth/* | Owner setup, login, JWT, refresh, logout |
+| 2 | Config | /config/* | Versioned config, feature flags, encryption |
+| 3 | MarketMaster | /instruments, /exchanges, /issuers, /listings | Market data master |
+| 4 | Fundamental | /financial-statements, /ratios, /estimates | Financial data |
+| 5 | Analytics | /signals, /forecasts, /ohlcv | Trading signals & forecasts |
+| 6 | Risk | /risk-profiles, /risk-limits, /assessments | Risk management |
+| 7 | Portfolio | /portfolios, /positions, /cash, /transactions | Portfolio management |
+| 8 | Trading | /brokers, /orders, /order-intents | Order management |
+| 9 | Settlement | /settlements, /reconciliations | Trade settlement |
+| 10 | Governance | /policies, /audit-logs | Governance & compliance |
+| 11 | Alert | /alerts | Price/signal/risk alerts |
+| 12 | Backtesting | /backtests | Strategy backtesting |
+| 13 | PaperTrading | /paper/* | Simulated trading |
+| 14 | AIEngine | /ai/* | Sentiment, pattern, anomaly detection |
+| 15 | DataIngestion | /ingestion/* | Data source management |
+| 16 | Valuation | /valuations | DCF & relative valuation |
+| 17 | BrokerAdapter | /brokers/api-* | Broker API integration |
 
-See `api/API_CONTRACT.md` for the owner-only specification (138 endpoints across 10 contexts).
+## Key Design Decisions
 
-## Blueprint
+- **No framework**: Pure PHP with PSR-4 autoloading, custom Router, DI container
+- **API envelope**: All responses wrapped in `{ data: ... }` or `{ error: { code, message } }`
+- **JWT**: HS256 with `owner_id` + `jti`, stored in `owner_session` table (revocable)
+- **PDO named params**: MariaDB doesn't support reusing named params in prepared statements — all params must be unique (e.g., `:now1`, `:now2`)
+- **Redis fail-open**: If Redis is unavailable, app continues without cache
+- **Frontend SPA**: Served from `/dashboard/`, API from root `/`
 
-See `MASTER_BLUEPRINT.md` for the complete system blueprint including:
-- System Constitution
-- Architecture Contradiction Audit
-- Technology Decision Record
-- Domain Model & Bounded Contexts
-- Canonical Data Model
-- Canonical Data Contract (15 items)
-- Logical ERD corrected for single-owner operation (10 contexts, 56 MySQL tables including revocable owner sessions)
-- Physical SQL Schema (MySQL + PostgreSQL)
-- API Contract (138 owner-authenticated endpoints)
-- Service Boundary Specification
-- Phase 1 implementation: IdentityService + ConfigService
-- Phase 2 implementation: MarketMasterService + FundamentalService
-- Phase 3 implementation: AnalyticsService
-- Phase 4 implementation: RiskService + PortfolioService
-- Phase 5 implementation: TradingService + SettlementService
+## Development Workflow
+
+```bash
+# 1. Start MySQL (XAMPP)
+sudo /opt/lampp/lampp startmysql
+
+# 2. Start Redis (if available)
+redis-server --daemonize yes
+
+# 3. Start PHP server
+php -S localhost:8080 -t public public/router.php
+
+# 4. Frontend dev (optional, hot reload)
+cd frontend && npm run dev
+
+# 5. Run tests
+vendor/bin/phpunit          # Backend
+npx playwright test          # E2E
+
+# 6. Build frontend for production
+cd frontend && npm run build
+```
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| `SQLSTATE[HY093]: Invalid parameter number` | Duplicate PDO named params — each `:param` must be unique in a single SQL statement |
+| Assets 404 on `/dashboard/` | Run `cd frontend && npm run build` — Vite `base` must be `/dashboard/` |
+| `Class not found` errors | Run `composer install` and `composer dump-autoload` |
+| Auth 401 on all requests | JWT expired — re-login via `/auth/login` |
+| Migration 011 fails | It's PostgreSQL-only, skip it on MySQL |
+| Redis extension missing | App fails open — not required for development |
+
+## License
+
+Proprietary. All rights reserved.
