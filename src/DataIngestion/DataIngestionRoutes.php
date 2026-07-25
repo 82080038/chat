@@ -26,6 +26,7 @@ final class DataIngestionRoutes
         $router->get('/ingestion/quality/{instrumentId}', [self::class, 'dataQuality'], ['bearer']);
         $router->post('/ingestion/fetch', [self::class, 'fetchFromExternal'], ['bearer']);
         $router->post('/ingestion/seed-market-data', [self::class, 'seedMarketData'], ['bearer']);
+        $router->get('/data-completeness', [self::class, 'dataCompleteness'], ['bearer']);
     }
 
     private static function service(): DataIngestionService
@@ -90,6 +91,12 @@ final class DataIngestionRoutes
     {
         $instrumentId = (string) $request->getParam('instrumentId');
         return Response::ok(self::service()->runDataQualityChecks($instrumentId));
+    }
+
+    public static function dataCompleteness(Request $request): Response
+    {
+        $checker = new DataCompletenessChecker();
+        return Response::ok($checker->checkAll());
     }
 
     public static function fetchFromExternal(Request $request): Response

@@ -912,6 +912,9 @@ export const DataIngestionAPI = {
 
   seedMarketData: (data?: { days?: number; delay?: number; symbol?: string }) =>
     api.post<{ total_records_ingested: number; symbols_processed: number; errors: number; details: Array<{ symbol: string; name: string; instrument_id?: string; records_ingested?: number; status: string; error?: string }> }>('/ingestion/seed-market-data', data ?? {}),
+
+  checkCompleteness: () =>
+    api.get<Record<string, unknown>>('/data-completeness'),
 };
 
 // ─── Market Coverage API ──────────────────────────────────────────────

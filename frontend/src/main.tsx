@@ -13,6 +13,7 @@ import Backtest from "./pages/Backtest";
 import PaperTrading from "./pages/PaperTrading";
 import AIEngine from "./pages/AIEngine";
 import MarketCoverage from "./pages/MarketCoverage";
+import DataCompleteness from "./pages/DataCompleteness";
 import { AuthProvider } from "./lib/auth";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
@@ -130,6 +131,16 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               <ProtectedRoute>
                 <Layout>
                   <MarketCoverage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/data-completeness"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DataCompleteness />
                 </Layout>
               </ProtectedRoute>
             }

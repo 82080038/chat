@@ -17,6 +17,7 @@ import {
   Brain,
   Newspaper,
   Globe,
+  Database,
 } from "lucide-react";
 import { MarketClock } from "@/components/MarketClock";
 
@@ -30,6 +31,7 @@ const navItems = [
   { to: "/risk", label: "Monitor Risiko", icon: Shield },
   { to: "/ai-engine", label: "AI Engine", icon: Brain },
   { to: "/market-coverage", label: "Cakupan Pasar", icon: Globe },
+  { to: "/data-completeness", label: "Kelengkapan Data", icon: Database },
   { to: "/settings", label: "Pengaturan", icon: Settings },
 ];
 
