@@ -203,7 +203,10 @@ final class MarketCoverageRoutes
             'instrument_type' => 'STOCK',
             'market_name' => 'Pasar Saham (Equity Market)',
             'description' => 'Individual stocks from IDX and global exchanges',
-            'capabilities' => ['ohlcv', 'indicators', 'signals', 'screening', 'valuation', 'trading', 'portfolio', 'risk', 'backtest'],
+            'capabilities' => [
+                'ohlcv', 'indicators', 'signals', 'screening', 'valuation',
+                'trading', 'portfolio', 'risk', 'backtest',
+            ],
             'data_source' => 'Yahoo Finance',
         ],
         [

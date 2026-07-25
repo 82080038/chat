@@ -65,6 +65,8 @@ use Platform\Core\Application;
 use Platform\Core\Http\Request;
 use Platform\Core\Http\Response;
 use Platform\Core\Http\Router;
+use Platform\Core\Cache\RedisCacheStore;
+use Platform\Core\EventBus\EventBus;
 use Platform\Core\Middleware\AuthMiddleware;
 use Platform\Fundamental\FundamentalRoutes;
 use Platform\Fundamental\FundamentalService;
@@ -75,6 +77,8 @@ use Platform\Identity\IdentityService;
 use Platform\MarketMaster\MarketMasterRoutes;
 use Platform\MarketMaster\MarketCoverageRoutes;
 use Platform\MarketMaster\MarketMasterService;
+use Platform\MarketData\RealTimeDataRoutes;
+use Platform\MarketData\RealTimeDataService;
 use Platform\Portfolio\PortfolioRoutes;
 use Platform\Portfolio\PortfolioService;
 use Platform\Risk\RiskRoutes;
@@ -105,6 +109,7 @@ $app->registerService('backtest', new BacktestService());
 $app->registerService('paper_trading', new PaperTradingService());
 $app->registerService('ai_engine', new AIEngineService());
 $app->registerService('microstructure', new MicrostructureService());
+$app->registerService('realtime_data', new RealTimeDataService());
 
 // Create router
 $router = new Router();
@@ -125,13 +130,42 @@ $router->get('/health', function (Request $request) use ($app): Response {
 });
 
 $router->get('/health/ready', function (Request $request): Response {
+    $checks = [];
+    $healthy = true;
+
     try {
         $db = \Platform\Core\Database\MySqlConnection::getInstance();
         $db->query('SELECT 1');
-        return Response::ok(['status' => 'ready', 'database' => 'connected']);
+        $checks['database'] = 'connected';
     } catch (\Exception $e) {
-        return Response::error(503, 'NOT_READY', 'Database connection failed: ' . $e->getMessage());
+        $checks['database'] = 'failed: ' . $e->getMessage();
+        $healthy = false;
     }
+
+    if (RedisCacheStore::getInstance()->ping()) {
+        $checks['redis'] = 'connected';
+    } else {
+        $checks['redis'] = 'unavailable';
+    }
+
+    if (EventBus::getInstance()->connect()) {
+        $checks['rabbitmq'] = 'connected';
+    } else {
+        $checks['rabbitmq'] = 'unavailable';
+    }
+
+    $status = $healthy ? 'ready' : 'degraded';
+    if ($healthy) {
+        return Response::ok(['status' => $status, 'checks' => $checks]);
+    }
+
+    return Response::error(
+        503,
+        'NOT_READY',
+        'One or more required services are unavailable',
+        [],
+        $request->getCorrelationId()
+    )->addHeader('X-Health-Status', $status);
 });
 
 $router->get('/health/live', function (Request $request): Response {
@@ -183,6 +217,7 @@ AIEngineRoutes::register($router);
 MicrostructureRoutes::register($router);
 MarketSchedulerRoutes::register($router);
 SystemEnvironmentRoutes::register($router);
+RealTimeDataRoutes::register($router);
 
 // Dispatch
 $request = new Request();

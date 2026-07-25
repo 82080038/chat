@@ -8,6 +8,7 @@ use Platform\Core\BaseService;
 use Platform\Core\Database\TimescaleDbService;
 use Platform\Core\EventBus\EventBus;
 use Platform\Core\Exceptions\ApiException;
+use Platform\Core\Http\HttpClient;
 
 final class DataIngestionService extends BaseService implements DataIngestionServiceInterface
 {
@@ -357,31 +358,41 @@ final class DataIngestionService extends BaseService implements DataIngestionSer
         }
 
         $ingested = 0;
-        foreach ($ohlcData as $bar) {
-            $existing = $this->db->prepare(
-                'SELECT ohlcv_id FROM data_ingestion.ohlcv_daily
-                 WHERE instrument_id = :inst AND trade_date = :date'
-            );
-            $existing->execute([
-                ':inst' => $instrumentId,
-                ':date' => $bar['trade_date'],
-            ]);
-            if ($existing->fetch() !== false) {
-                continue;
+        $this->db->beginTransaction();
+        try {
+            foreach ($ohlcData as $bar) {
+                $existing = $this->db->prepare(
+                    'SELECT ohlcv_id FROM data_ingestion.ohlcv_daily
+                     WHERE instrument_id = :inst AND trade_date = :date'
+                );
+                $existing->execute([
+                    ':inst' => $instrumentId,
+                    ':date' => $bar['trade_date'],
+                ]);
+                if ($existing->fetch() !== false) {
+                    continue;
+                }
+
+                $this->ingestOhlcv([
+                    'instrument_id' => $instrumentId,
+                    'trade_date' => $bar['trade_date'],
+                    'open' => $bar['open'],
+                    'high' => $bar['high'],
+                    'low' => $bar['low'],
+                    'close' => $bar['close'],
+                    'volume' => $bar['volume'] ?? 0,
+                    'adjusted_close' => $bar['adjusted_close'] ?? null,
+                    'source' => strtoupper($provider),
+                ]);
+                $ingested++;
             }
 
-            $this->ingestOhlcv([
-                'instrument_id' => $instrumentId,
-                'trade_date' => $bar['trade_date'],
-                'open' => $bar['open'],
-                'high' => $bar['high'],
-                'low' => $bar['low'],
-                'close' => $bar['close'],
-                'volume' => $bar['volume'] ?? 0,
-                'adjusted_close' => $bar['adjusted_close'] ?? null,
-                'source' => strtoupper($provider),
-            ]);
-            $ingested++;
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
         }
 
         return [
@@ -403,7 +414,10 @@ final class DataIngestionService extends BaseService implements DataIngestionSer
      * @param string $symbol Yahoo Finance symbol (e.g. BBCA.JK)
      * @param string $fromDate
      * @param string $toDate
-     * @return array<int, array{trade_date: string, open: float, high: float, low: float, close: float, volume: int, adjusted_close: float}>
+     * @return array<int, array{
+     *     trade_date: string, open: float, high: float, low: float, close: float,
+     *     volume: int, adjusted_close: float
+     * }>
      */
     private function fetchFromYahoo(string $symbol, string $fromDate, string $toDate): array
     {
@@ -457,7 +471,10 @@ final class DataIngestionService extends BaseService implements DataIngestionSer
      * @param string $symbol
      * @param string $fromDate
      * @param string $toDate
-     * @return array<int, array{trade_date: string, open: float, high: float, low: float, close: float, volume: int, adjusted_close: ?float}>
+     * @return array<int, array{
+     *     trade_date: string, open: float, high: float, low: float, close: float,
+     *     volume: int, adjusted_close: ?float
+     * }>
      */
     private function fetchFromAlphaVantage(string $symbol, string $fromDate, string $toDate): array
     {
@@ -513,7 +530,10 @@ final class DataIngestionService extends BaseService implements DataIngestionSer
      * @param string $symbol
      * @param string $fromDate
      * @param string $toDate
-     * @return array<int, array{trade_date: string, open: float, high: float, low: float, close: float, volume: int, adjusted_close: ?float}>
+     * @return array<int, array{
+     *     trade_date: string, open: float, high: float, low: float, close: float,
+     *     volume: int, adjusted_close: ?float
+     * }>
      */
     private function fetchFromFMP(string $symbol, string $fromDate, string $toDate): array
     {
@@ -599,37 +619,6 @@ final class DataIngestionService extends BaseService implements DataIngestionSer
      */
     private function httpGetJson(string $url, array $headers = []): array
     {
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 20,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_HTTPHEADER => $headers !== [] ? $headers : ['Accept: application/json'],
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($response === false) {
-            throw new ApiException(
-                502,
-                'EXTERNAL_API_ERROR',
-                "Failed to connect to external API: {$error}"
-            );
-        }
-
-        $data = json_decode($response, true);
-        if (!is_array($data)) {
-            throw new ApiException(
-                502,
-                'EXTERNAL_API_ERROR',
-                "External API returned invalid JSON (HTTP {$httpCode})"
-            );
-        }
-
-        return $data;
+        return (new HttpClient())->getJson($url, $headers);
     }
 }

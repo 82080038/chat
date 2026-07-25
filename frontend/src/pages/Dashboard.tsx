@@ -20,6 +20,7 @@ import {
   RefreshCw,
   AlertCircle,
 } from "lucide-react";
+import { LiveQuote } from "@/components/LiveQuote";
 
 type HealthStatus = {
   status: string;
@@ -126,6 +127,11 @@ export default function Dashboard() {
           icon={<Bell className="h-5 w-5 text-orange-500" />}
           subtitle="Peringatan terpantau"
         />
+      </div>
+
+      {/* Live Quote */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <LiveQuote symbol="BBCA.JK" />
       </div>
 
       {/* Two Column Layout */}

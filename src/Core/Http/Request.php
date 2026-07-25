@@ -16,6 +16,7 @@ final class Request
     private ?string $ownerId = null;
     private ?string $accessJti = null;
     private ?string $correlationId = null;
+    private array $attributes = [];
 
     public function __construct()
     {
@@ -109,5 +110,21 @@ final class Request
     public function setCorrelationId(?string $correlationId): void
     {
         $this->correlationId = $correlationId;
+    }
+
+    public function setAttribute(string $name, mixed $value): self
+    {
+        $this->attributes[$name] = $value;
+        return $this;
+    }
+
+    public function getAttribute(string $name, mixed $default = null): mixed
+    {
+        return $this->attributes[$name] ?? $default;
+    }
+
+    public function getAttributes(): array
+    {
+        return $this->attributes;
     }
 }

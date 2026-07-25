@@ -648,14 +648,30 @@ final class MarketScheduler
         $reg2End = $this->parseTime('15:50');
         $closingEnd = $this->parseTime('16:00');
 
-        if ($minutes < $preOpen) return 'PRE_MARKET';
-        if ($minutes < $reg1Start) return 'IDX_PRE_OPEN';
-        if ($minutes < $reg1End) return 'IDX_REGULAR_1';
-        if ($minutes < $reg2Start) return 'IDX_LUNCH';
-        if ($minutes < $reg2End) return 'IDX_REGULAR_2';
-        if ($minutes < $closingEnd) return 'IDX_CLOSING';
-        if ($minutes < $this->parseTime('18:00')) return 'POST_MARKET';
-        if ($minutes >= $this->parseTime('21:00') || $minutes < $this->parseTime('05:00')) return 'GLOBAL_OVERLAP';
+        if ($minutes < $preOpen) {
+            return 'PRE_MARKET';
+        }
+        if ($minutes < $reg1Start) {
+            return 'IDX_PRE_OPEN';
+        }
+        if ($minutes < $reg1End) {
+            return 'IDX_REGULAR_1';
+        }
+        if ($minutes < $reg2Start) {
+            return 'IDX_LUNCH';
+        }
+        if ($minutes < $reg2End) {
+            return 'IDX_REGULAR_2';
+        }
+        if ($minutes < $closingEnd) {
+            return 'IDX_CLOSING';
+        }
+        if ($minutes < $this->parseTime('18:00')) {
+            return 'POST_MARKET';
+        }
+        if ($minutes >= $this->parseTime('21:00') || $minutes < $this->parseTime('05:00')) {
+            return 'GLOBAL_OVERLAP';
+        }
         return 'OVERNIGHT';
     }
 

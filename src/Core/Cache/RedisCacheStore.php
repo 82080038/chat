@@ -10,7 +10,17 @@ use Throwable;
 
 final class RedisCacheStore implements CacheStoreInterface
 {
+    private static ?self $instance = null;
+
     private Client $client;
+
+    public static function getInstance(): self
+    {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     public function __construct(?Client $client = null)
     {
@@ -46,6 +56,16 @@ final class RedisCacheStore implements CacheStoreInterface
         try {
             $this->client->del([$key]);
         } catch (Throwable) {
+        }
+    }
+
+    public function ping(): bool
+    {
+        try {
+            $this->client->ping();
+            return true;
+        } catch (Throwable) {
+            return false;
         }
     }
 }

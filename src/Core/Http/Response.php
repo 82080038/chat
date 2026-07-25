@@ -35,13 +35,18 @@ final class Response
         return new self(204);
     }
 
-    public static function error(int $statusCode, string $code, string $message, array $fieldErrors = []): self
-    {
+    public static function error(
+        int $statusCode,
+        string $code,
+        string $message,
+        array $fieldErrors = [],
+        ?string $correlationId = null
+    ): self {
         $response = new self($statusCode);
         $response->error = [
             'code' => $code,
             'message' => $message,
-            'correlation_id' => \Ramsey\Uuid\Uuid::uuid7()->toString(),
+            'correlation_id' => $correlationId ?? \Ramsey\Uuid\Uuid::uuid7()->toString(),
         ];
         if ($fieldErrors !== []) {
             $response->error['field_errors'] = $fieldErrors;
@@ -51,7 +56,7 @@ final class Response
 
     public function addHeader(string $name, string $value): self
     {
-        $this->headers[$name] = $value;
+        $this->headers[$name][] = $value;
         return $this;
     }
 
@@ -65,8 +70,10 @@ final class Response
         http_response_code($this->statusCode);
         header('Content-Type: application/json');
 
-        foreach ($this->headers as $name => $value) {
-            header("{$name}: {$value}");
+        foreach ($this->headers as $name => $values) {
+            foreach ($values as $value) {
+                header("{$name}: {$value}", $name !== 'Set-Cookie');
+            }
         }
 
         if ($this->statusCode === 204) {

@@ -294,7 +294,9 @@ final class SystemEnvironment
             if ($lspci !== null) {
                 foreach (explode("\n", $lspci) as $line) {
                     $line = trim($line);
-                    if ($line === '') continue;
+                    if ($line === '') {
+                        continue;
+                    }
                     if (str_contains(strtolower($line), 'nvidia') && !$hasNvidia) {
                         $hasNvidia = true;
                         $gpus[] = [
@@ -349,9 +351,13 @@ final class SystemEnvironment
                     if (isset($current['model']) && $current['model'] !== '') {
                         $vendor = 'Unknown';
                         $lower = strtolower($current['model']);
-                        if (str_contains($lower, 'nvidia')) $vendor = 'NVIDIA';
-                        elseif (str_contains($lower, 'amd') || str_contains($lower, 'radeon')) $vendor = 'AMD';
-                        elseif (str_contains($lower, 'intel')) $vendor = 'Intel';
+                        if (str_contains($lower, 'nvidia')) {
+                            $vendor = 'NVIDIA';
+                        } elseif (str_contains($lower, 'amd') || str_contains($lower, 'radeon')) {
+                            $vendor = 'AMD';
+                        } elseif (str_contains($lower, 'intel')) {
+                            $vendor = 'Intel';
+                        }
 
                         $gpus[] = [
                             'vendor' => $vendor,
@@ -528,10 +534,15 @@ final class SystemEnvironment
         $isBuiltIn = str_contains(PHP_SAPI, 'cli-server');
 
         $server = 'Unknown';
-        if ($isApache) $server = 'Apache';
-        elseif ($isFpm) $server = 'PHP-FPM';
-        elseif ($isBuiltIn) $server = 'PHP Built-in Server';
-        elseif ($isCli) $server = 'CLI';
+        if ($isApache) {
+            $server = 'Apache';
+        } elseif ($isFpm) {
+            $server = 'PHP-FPM';
+        } elseif ($isBuiltIn) {
+            $server = 'PHP Built-in Server';
+        } elseif ($isCli) {
+            $server = 'CLI';
+        }
 
         return [
             'sapi' => PHP_SAPI,
@@ -672,7 +683,9 @@ final class SystemEnvironment
 
     private function formatBytes(int $bytes): string
     {
-        if ($bytes <= 0) return '0 B';
+        if ($bytes <= 0) {
+            return '0 B';
+        }
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
         $i = 0;
         $size = (float) $bytes;

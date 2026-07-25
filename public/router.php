@@ -1,13 +1,13 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * PHP built-in server router.
  * - Serves static files from public/ as-is
  * - Routes /dashboard/* (except real files) to the SPA index.html
  * - Everything else goes to index.php (API)
  */
+
+declare(strict_types=1);
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 

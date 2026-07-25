@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Market Data Seeder
  *
@@ -22,6 +23,7 @@ declare(strict_types=1);
 namespace Platform\DataIngestion;
 
 use Platform\Core\Database\MySqlConnection;
+use Platform\Core\Http\HttpClient;
 
 final class MarketDataSeeder
 {
@@ -30,7 +32,12 @@ final class MarketDataSeeder
     private int $lookbackDays;
     private array $symbols;
 
-    /** @var array<int, array{yahoo: string, ticker: string, name: string, asset_class: string, instrument_type: string, currency: string, exchange_mic: string}> */
+    /**
+     * @var array<int, array{
+     *     yahoo: string, ticker: string, name: string, asset_class: string,
+     *     instrument_type: string, currency: string, exchange_mic: string
+     * }>
+     */
     private const DEFAULT_SYMBOLS = [
         // IDX Stocks
         ['yahoo' => 'BBCA.JK', 'ticker' => 'BBCA', 'name' => 'Bank Central Asia', 'asset_class' => 'EQUITY', 'instrument_type' => 'COMMON_STOCK', 'currency' => 'IDR', 'exchange_mic' => 'XIDX'],
@@ -80,7 +87,10 @@ final class MarketDataSeeder
     /**
      * Run the seeder. If filterSymbol is provided, only fetch that symbol.
      *
-     * @return array<int, array{symbol: string, name: string, instrument_id?: string, records_ingested?: int, status: string, error?: string}>
+     * @return array<int, array{
+     *     symbol: string, name: string, instrument_id?: string,
+     *     records_ingested?: int, status: string, error?: string
+     * }>
      */
     public function run(?string $filterSymbol = null): array
     {
@@ -159,80 +169,92 @@ final class MarketDataSeeder
             return $row['instrument_id'];
         }
 
-        // Create new instrument chain: issuer -> security -> instrument -> listing
+        // Create new instrument chain atomically: issuer -> security -> instrument -> listing
         $issuerId = $this->uuid();
         $securityId = $this->uuid();
         $instrumentId = $this->uuid();
         $listingId = $this->uuid();
         $now = gmdate('Y-m-d H:i:s');
 
-        // Get exchange ID
-        $exchangeStmt = $this->db->prepare(
-            'SELECT exchange_id FROM market_master.exchange WHERE mic_code = :mic LIMIT 1'
-        );
-        $exchangeStmt->execute([':mic' => $sym['exchange_mic']]);
-        $exchangeRow = $exchangeStmt->fetch();
-        $exchangeId = $exchangeRow !== false ? $exchangeRow['exchange_id'] : null;
-
-        if ($exchangeId === null) {
-            // Try CRYPTO exchange for crypto instruments
+        $this->db->beginTransaction();
+        try {
+            // Get exchange ID
             $exchangeStmt = $this->db->prepare(
                 'SELECT exchange_id FROM market_master.exchange WHERE mic_code = :mic LIMIT 1'
             );
-            $fallbackMic = $sym['exchange_mic'] === 'CRYPTO' ? 'CRYPTO' : 'GLOBAL';
-            $exchangeStmt->execute([':mic' => $fallbackMic]);
+            $exchangeStmt->execute([':mic' => $sym['exchange_mic']]);
             $exchangeRow = $exchangeStmt->fetch();
             $exchangeId = $exchangeRow !== false ? $exchangeRow['exchange_id'] : null;
-        }
 
-        // Create issuer
-        $this->db->prepare(
-            'INSERT INTO market_master.issuer (issuer_id, legal_name, short_name, country, sector_code, status)
-             VALUES (:id, :name, :short, :country, :sector, "ACTIVE")'
-        )->execute([
-            ':id' => $issuerId,
-            ':name' => $sym['name'],
-            ':short' => strtoupper(substr($sym['name'], 0, 10)),
-            ':country' => $sym['exchange_mic'] === 'XIDX' ? 'ID' : 'XX',
-            ':sector' => $sym['asset_class'],
-        ]);
+            if ($exchangeId === null) {
+                // Try CRYPTO exchange for crypto instruments
+                $exchangeStmt = $this->db->prepare(
+                    'SELECT exchange_id FROM market_master.exchange WHERE mic_code = :mic LIMIT 1'
+                );
+                $fallbackMic = $sym['exchange_mic'] === 'CRYPTO' ? 'CRYPTO' : 'GLOBAL';
+                $exchangeStmt->execute([':mic' => $fallbackMic]);
+                $exchangeRow = $exchangeStmt->fetch();
+                $exchangeId = $exchangeRow !== false ? $exchangeRow['exchange_id'] : null;
+            }
 
-        // Create security
-        $this->db->prepare(
-            'INSERT INTO market_master.security (security_id, issuer_id, security_type, currency, status)
-             VALUES (:id, :issuer, :type, :currency, "ACTIVE")'
-        )->execute([
-            ':id' => $securityId,
-            ':issuer' => $issuerId,
-            ':type' => $sym['asset_class'] === 'EQUITY' ? 'STOCK' : $sym['asset_class'],
-            ':currency' => $sym['currency'],
-        ]);
-
-        // Create instrument
-        $this->db->prepare(
-            'INSERT INTO market_master.instrument (instrument_id, security_id, asset_class, instrument_type, currency, status, status_changed_at)
-             VALUES (:id, :sec, :class, :type, :currency, "ACTIVE", :now)'
-        )->execute([
-            ':id' => $instrumentId,
-            ':sec' => $securityId,
-            ':class' => $sym['asset_class'],
-            ':type' => $sym['instrument_type'],
-            ':currency' => $sym['currency'],
-            ':now' => $now,
-        ]);
-
-        // Create listing
-        if ($exchangeId !== null) {
+            // Create issuer
             $this->db->prepare(
-                'INSERT INTO market_master.listing (listing_id, instrument_id, exchange_id, ticker, currency, status)
-                 VALUES (:id, :inst, :exch, :ticker, :currency, "ACTIVE")'
+                'INSERT INTO market_master.issuer (issuer_id, legal_name, short_name, country, sector_code, status)
+                 VALUES (:id, :name, :short, :country, :sector, "ACTIVE")'
             )->execute([
-                ':id' => $listingId,
-                ':inst' => $instrumentId,
-                ':exch' => $exchangeId,
-                ':ticker' => $ticker,
+                ':id' => $issuerId,
+                ':name' => $sym['name'],
+                ':short' => strtoupper(substr($sym['name'], 0, 10)),
+                ':country' => $sym['exchange_mic'] === 'XIDX' ? 'ID' : 'XX',
+                ':sector' => $sym['asset_class'],
+            ]);
+
+            // Create security
+            $this->db->prepare(
+                'INSERT INTO market_master.security (security_id, issuer_id, security_type, currency, status)
+                 VALUES (:id, :issuer, :type, :currency, "ACTIVE")'
+            )->execute([
+                ':id' => $securityId,
+                ':issuer' => $issuerId,
+                ':type' => $sym['asset_class'] === 'EQUITY' ? 'STOCK' : $sym['asset_class'],
                 ':currency' => $sym['currency'],
             ]);
+
+            // Create instrument
+            $this->db->prepare(
+                'INSERT INTO market_master.instrument
+                 (instrument_id, security_id, asset_class, instrument_type, currency, status, status_changed_at)
+                 VALUES (:id, :sec, :class, :type, :currency, "ACTIVE", :now)'
+            )->execute([
+                ':id' => $instrumentId,
+                ':sec' => $securityId,
+                ':class' => $sym['asset_class'],
+                ':type' => $sym['instrument_type'],
+                ':currency' => $sym['currency'],
+                ':now' => $now,
+            ]);
+
+            // Create listing
+            if ($exchangeId !== null) {
+                $this->db->prepare(
+                    'INSERT INTO market_master.listing
+                     (listing_id, instrument_id, exchange_id, ticker, currency, status)
+                     VALUES (:id, :inst, :exch, :ticker, :currency, "ACTIVE")'
+                )->execute([
+                    ':id' => $listingId,
+                    ':inst' => $instrumentId,
+                    ':exch' => $exchangeId,
+                    ':ticker' => $ticker,
+                    ':currency' => $sym['currency'],
+                ]);
+            }
+
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
         }
 
         return $instrumentId;
@@ -255,7 +277,9 @@ final class MarketDataSeeder
             . "&interval=1d&includeAdjustedClose=true";
 
         $response = $this->httpGetJson($url, [
-            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent: Mozilla/5.0 '
+                . '(Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                . '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         ]);
 
         if (!isset($response['chart']['result'][0]['timestamp'])) {
@@ -310,39 +334,11 @@ final class MarketDataSeeder
 
     private function httpGetJson(string $url, array $headers = []): array
     {
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTPHEADER => $headers !== [] ? $headers : ['Accept: application/json'],
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($response === false) {
-            throw new \RuntimeException("HTTP request failed: {$error}");
+        try {
+            return (new HttpClient())->getJson($url, $headers, 2, 30);
+        } catch (\Platform\Core\Exceptions\ApiException $e) {
+            throw new \RuntimeException($e->getMessage());
         }
-
-        if ($httpCode === 429) {
-            throw new \RuntimeException("Yahoo Finance rate limited (HTTP 429). Increase delay between requests.");
-        }
-
-        if ($httpCode >= 400) {
-            throw new \RuntimeException("Yahoo Finance returned HTTP {$httpCode}");
-        }
-
-        $data = json_decode($response, true);
-        if (!is_array($data)) {
-            throw new \RuntimeException("Yahoo Finance returned invalid JSON");
-        }
-
-        return $data;
     }
 
     private function uuid(): string

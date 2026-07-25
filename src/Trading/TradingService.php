@@ -427,45 +427,57 @@ final class TradingService extends BaseService implements TradingServiceInterfac
             '0',
             STR_PAD_LEFT
         ) . '1';
-        $stmt = $this->db->prepare(
-            'INSERT INTO trading.order
-             (order_id, order_ref, order_intent_id, portfolio_id, account_id,
-              instrument_id, side, order_type, quantity, filled_quantity,
-              remaining_quantity, limit_price, stop_price, time_in_force,
-              expire_at, broker_order_id, status, rejection_reason,
-              submitted_at, filled_at, created_at, updated_at)
-             VALUES
-             (:id, :order_ref, :order_intent_id, :portfolio_id, :account_id,
-              :instrument_id, :side, :order_type, :quantity, 0,
-              :remaining, :limit_price, :stop_price, :time_in_force,
-              :expire_at, NULL, :status, NULL,
-              :now1, NULL, :now2, :now3)'
-        );
-        $stmt->execute([
-            ':id' => $id,
-            ':order_ref' => $orderRef,
-            ':order_intent_id' => $data['order_intent_id'],
-            ':portfolio_id' => $intent['portfolio_id'],
-            ':account_id' => $data['account_id'],
-            ':instrument_id' => $intent['instrument_id'],
-            ':side' => $intent['side'],
-            ':order_type' => $data['order_type'] ?? 'MARKET',
-            ':quantity' => $data['quantity'],
-            ':remaining' => $data['quantity'],
-            ':limit_price' => $data['limit_price'] ?? null,
-            ':stop_price' => $data['stop_price'] ?? null,
-            ':time_in_force' => $data['time_in_force'] ?? 'DAY',
-            ':expire_at' => $data['expire_at'] ?? null,
-            ':status' => 'SUBMITTED',
-            ':now1' => $now,
-            ':now2' => $now,
-            ':now3' => $now,
-        ]);
-        $stmt2 = $this->db->prepare(
-            'UPDATE trading.order_intent SET status = :status WHERE order_intent_id = :id'
-        );
-        $stmt2->execute([':status' => 'CONVERTED', ':id' => $data['order_intent_id']]);
-        $order = $this->getOrder($id);
+
+        $order = null;
+        $this->db->beginTransaction();
+        try {
+            $stmt = $this->db->prepare(
+                'INSERT INTO trading.order
+                 (order_id, order_ref, order_intent_id, portfolio_id, account_id,
+                  instrument_id, side, order_type, quantity, filled_quantity,
+                  remaining_quantity, limit_price, stop_price, time_in_force,
+                  expire_at, broker_order_id, status, rejection_reason,
+                  submitted_at, filled_at, created_at, updated_at)
+                 VALUES
+                 (:id, :order_ref, :order_intent_id, :portfolio_id, :account_id,
+                  :instrument_id, :side, :order_type, :quantity, 0,
+                  :remaining, :limit_price, :stop_price, :time_in_force,
+                  :expire_at, NULL, :status, NULL,
+                  :now1, NULL, :now2, :now3)'
+            );
+            $stmt->execute([
+                ':id' => $id,
+                ':order_ref' => $orderRef,
+                ':order_intent_id' => $data['order_intent_id'],
+                ':portfolio_id' => $intent['portfolio_id'],
+                ':account_id' => $data['account_id'],
+                ':instrument_id' => $intent['instrument_id'],
+                ':side' => $intent['side'],
+                ':order_type' => $data['order_type'] ?? 'MARKET',
+                ':quantity' => $data['quantity'],
+                ':remaining' => $data['quantity'],
+                ':limit_price' => $data['limit_price'] ?? null,
+                ':stop_price' => $data['stop_price'] ?? null,
+                ':time_in_force' => $data['time_in_force'] ?? 'DAY',
+                ':expire_at' => $data['expire_at'] ?? null,
+                ':status' => 'SUBMITTED',
+                ':now1' => $now,
+                ':now2' => $now,
+                ':now3' => $now,
+            ]);
+            $stmt2 = $this->db->prepare(
+                'UPDATE trading.order_intent SET status = :status WHERE order_intent_id = :id'
+            );
+            $stmt2->execute([':status' => 'CONVERTED', ':id' => $data['order_intent_id']]);
+            $order = $this->getOrder($id);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
+
         $this->hub()->audit(
             'ORDER_SUBMITTED',
             'ORDER',

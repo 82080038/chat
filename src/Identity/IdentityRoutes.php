@@ -112,24 +112,59 @@ final class IdentityRoutes
 
     private static function setAuthCookies(Response $response, array $tokens): void
     {
-        $secure = getenv('APP_ENV') !== 'development';
+        $secure = Application::getInstance()->getEnvironment() !== 'development';
         $sameSite = $secure ? 'None' : 'Lax';
         $response->addHeader(
             'Set-Cookie',
-            'access_token=' . ($tokens['token'] ?? '') . '; HttpOnly; Path=/; SameSite=' . $sameSite . ($secure ? '; Secure' : '') . '; Max-Age=' . ($tokens['expires_in'] ?? 3600)
+            self::buildCookie(
+                'access_token',
+                $tokens['token'] ?? '',
+                '/',
+                $tokens['expires_in'] ?? 3600,
+                $secure,
+                $sameSite
+            )
         );
         $response->addHeader(
             'Set-Cookie',
-            'refresh_token=' . ($tokens['refresh_token'] ?? '') . '; HttpOnly; Path=/auth; SameSite=' . $sameSite . ($secure ? '; Secure' : '') . '; Max-Age=604800'
+            self::buildCookie(
+                'refresh_token',
+                $tokens['refresh_token'] ?? '',
+                '/auth',
+                604800,
+                $secure,
+                $sameSite
+            )
         );
     }
 
     private static function clearAuthCookies(Response $response): void
     {
-        $secure = getenv('APP_ENV') !== 'development';
+        $secure = Application::getInstance()->getEnvironment() !== 'development';
         $sameSite = $secure ? 'None' : 'Lax';
-        $response->addHeader('Set-Cookie', 'access_token=; HttpOnly; Path=/; SameSite=' . $sameSite . ($secure ? '; Secure' : '') . '; Max-Age=0');
-        $response->addHeader('Set-Cookie', 'refresh_token=; HttpOnly; Path=/auth; SameSite=' . $sameSite . ($secure ? '; Secure' : '') . '; Max-Age=0');
+        $response->addHeader(
+            'Set-Cookie',
+            self::buildCookie('access_token', '', '/', 0, $secure, $sameSite)
+        );
+        $response->addHeader(
+            'Set-Cookie',
+            self::buildCookie('refresh_token', '', '/auth', 0, $secure, $sameSite)
+        );
+    }
+
+    private static function buildCookie(
+        string $name,
+        string $value,
+        string $path,
+        int $maxAge,
+        bool $secure,
+        string $sameSite
+    ): string {
+        $flags = 'HttpOnly; Path=' . $path . '; SameSite=' . $sameSite;
+        if ($secure) {
+            $flags .= '; Secure';
+        }
+        return $name . '=' . $value . '; ' . $flags . '; Max-Age=' . $maxAge;
     }
 
     private static function requiredOwnerId(Request $request): string

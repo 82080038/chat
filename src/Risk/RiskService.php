@@ -275,7 +275,11 @@ final class RiskService extends BaseService implements RiskServiceInterface
      * (using market proxy if available).
      *
      * @param string $portfolioId
-     * @return array{var_95: ?float, var_99: ?float, expected_shortfall: ?float, portfolio_beta: ?float, sharpe_ratio: ?float, sortino_ratio: ?float, max_drawdown: ?float, volatility: ?float, concentration_index: ?float}
+     * @return array{
+     *     var_95: ?float, var_99: ?float, expected_shortfall: ?float,
+     *     portfolio_beta: ?float, sharpe_ratio: ?float, sortino_ratio: ?float,
+     *     max_drawdown: ?float, volatility: ?float, concentration_index: ?float
+     * }
      */
     private function computeRiskMetrics(string $portfolioId): array
     {
@@ -650,7 +654,8 @@ final class RiskService extends BaseService implements RiskServiceInterface
                                 'current_exposure_pct' => round(
                                     $portfolioExposure['total'] > 0
                                         ? ($currentExposure / $portfolioExposure['total']) * 100
-                                        : 0.0, 2
+                                        : 0.0,
+                                    2
                                 ),
                                 'risk_limit_id' => $limit['risk_limit_id'],
                             ];

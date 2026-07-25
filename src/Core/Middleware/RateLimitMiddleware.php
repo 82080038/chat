@@ -31,15 +31,15 @@ final class RateLimitMiddleware
 
     public static function api(Request $request): ?Response
     {
-        return self::check(self::DEFAULT_LIMIT, self::DEFAULT_WINDOW, 'api');
+        return self::check(self::DEFAULT_LIMIT, self::DEFAULT_WINDOW, 'api', $request);
     }
 
     public static function auth(Request $request): ?Response
     {
-        return self::check(self::AUTH_LIMIT, self::AUTH_WINDOW, 'auth');
+        return self::check(self::AUTH_LIMIT, self::AUTH_WINDOW, 'auth', $request);
     }
 
-    private static function check(int $limit, int $window, string $type): ?Response
+    private static function check(int $limit, int $window, string $type, Request $request): ?Response
     {
         $cache = self::cache();
         if ($cache === null) {
@@ -59,6 +59,9 @@ final class RateLimitMiddleware
         }
 
         $remaining = max(0, $limit - $current);
+        $request
+            ->setAttribute('X-RateLimit-Limit', (string) $limit)
+            ->setAttribute('X-RateLimit-Remaining', (string) $remaining);
 
         if ($current > $limit) {
             return Response::error(

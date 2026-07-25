@@ -31,6 +31,26 @@ final class MockPdo extends PDO
         return 0;
     }
 
+    public function beginTransaction(): bool
+    {
+        return true;
+    }
+
+    public function commit(): bool
+    {
+        return true;
+    }
+
+    public function rollBack(): bool
+    {
+        return true;
+    }
+
+    public function inTransaction(): bool
+    {
+        return false;
+    }
+
     // ─── Internal API ────────────────────────────────────────────────────
 
     /**

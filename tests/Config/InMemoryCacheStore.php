@@ -24,4 +24,9 @@ final class InMemoryCacheStore implements CacheStoreInterface
     {
         unset($this->values[$key]);
     }
+
+    public function ping(): bool
+    {
+        return true;
+    }
 }

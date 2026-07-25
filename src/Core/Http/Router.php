@@ -94,6 +94,7 @@ final class Router
                         if (isset($this->middleware[$mwName])) {
                             $result = ($this->middleware[$mwName])($request);
                             if ($result instanceof Response) {
+                                $this->applyRequestAttributes($result, $request);
                                 $this->logAccess($request, $result, $startedAt);
                                 $result->send();
                                 return;
@@ -103,6 +104,7 @@ final class Router
 
                     $response = ($route['handler'])($request);
                     if ($response instanceof Response) {
+                        $this->applyRequestAttributes($response, $request);
                         $this->logAccess($request, $response, $startedAt);
                         $response->send();
                         return;
@@ -112,13 +114,22 @@ final class Router
                         $exception->getStatusCode(),
                         $exception->getErrorCode(),
                         $exception->getMessage(),
-                        $exception->getFieldErrors()
+                        $exception->getFieldErrors(),
+                        $request->getCorrelationId()
                     );
+                    $this->applyRequestAttributes($response, $request);
                     $this->logAccess($request, $response, $startedAt);
                     $response->send();
                     return;
                 } catch (Throwable) {
-                    $response = Response::error(500, 'INTERNAL_ERROR', 'An unexpected error occurred');
+                    $response = Response::error(
+                        500,
+                        'INTERNAL_ERROR',
+                        'An unexpected error occurred',
+                        [],
+                        $request->getCorrelationId()
+                    );
+                    $this->applyRequestAttributes($response, $request);
                     $this->logAccess($request, $response, $startedAt);
                     $response->send();
                     return;
@@ -127,6 +138,15 @@ final class Router
         }
 
         Response::error(404, 'NOT_FOUND', "No route found for {$method} {$path}")->send();
+    }
+
+    private function applyRequestAttributes(Response $response, Request $request): void
+    {
+        foreach ($request->getAttributes() as $name => $value) {
+            if (is_string($value)) {
+                $response->addHeader($name, $value);
+            }
+        }
     }
 
     private function compilePattern(string $pattern): string
