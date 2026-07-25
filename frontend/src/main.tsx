@@ -15,6 +15,7 @@ import AIEngine from "./pages/AIEngine";
 import MarketCoverage from "./pages/MarketCoverage";
 import DataCompleteness from "./pages/DataCompleteness";
 import MarketScheduler from "./pages/MarketScheduler";
+import SystemEnvironment from "./pages/SystemEnvironment";
 import { AuthProvider } from "./lib/auth";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
@@ -152,6 +153,16 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               <ProtectedRoute>
                 <Layout>
                   <MarketScheduler />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/system-environment"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SystemEnvironment />
                 </Layout>
               </ProtectedRoute>
             }

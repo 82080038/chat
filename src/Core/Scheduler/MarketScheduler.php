@@ -7,6 +7,7 @@ namespace Platform\Core\Scheduler;
 use PDO;
 use Platform\Core\Database\MySqlConnection;
 use Platform\Core\Application;
+use Platform\Core\System\SystemEnvironment;
 use Platform\Analytics\AnalyticsService;
 use Platform\Analytics\AnalyticsServiceInterface;
 use Platform\Risk\RiskService;
@@ -250,6 +251,7 @@ final class MarketScheduler
             'next_task' => $nextTask,
             'all_sessions' => $this->formatAllSessions($minutes),
             'all_tasks' => $this->formatAllTasks($minutes, $isWeekend),
+            'system_capabilities' => SystemEnvironment::getInstance()->getCapabilities(),
         ];
     }
 
@@ -382,14 +384,18 @@ final class MarketScheduler
 
     private function getInstruments(): array
     {
+        $capabilities = SystemEnvironment::getInstance()->getCapabilities();
+        $limit = $capabilities['max_instruments_per_batch'] ?? 50;
+
         try {
             $stmt = $this->db->prepare(
                 "SELECT i.instrument_id, l.ticker AS symbol
                  FROM market_master.instrument i
                  LEFT JOIN market_master.listing l ON i.instrument_id = l.instrument_id
                  WHERE i.status = 'ACTIVE'
-                 LIMIT 50"
+                 LIMIT :limit"
             );
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
             $stmt->execute();
             return $stmt->fetchAll() ?: [];
         } catch (\Throwable) {

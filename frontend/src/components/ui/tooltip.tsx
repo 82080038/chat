@@ -69,6 +69,7 @@ const GLOSSARY: Record<string, string> = {
   NAV: "Net Asset Value — nilai aset bersih per unit reksa dana",
   Overlap: "Overlap sesi pasar — saat dua bursa buka bersamaan, likuiditas dan volatilitas meningkat",
   Completeness: "Persentase tabel kritis yang telah terisi data — semakin tinggi semakin siap aplikasi beroperasi",
+  CUDA: "Compute Unified Device Architecture — platform komputasi paralel NVIDIA untuk akselerasi GPU",
 };
 
 export function TermTooltip({ term, children }: { term: string; children?: ReactNode }) {

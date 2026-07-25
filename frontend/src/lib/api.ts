@@ -933,6 +933,16 @@ export const MarketSchedulerAPI = {
     api.post<Record<string, unknown>>(`/market-scheduler/run/${taskId}`, {}),
 };
 
+// ─── System Environment API ───────────────────────────────────────────
+
+export const SystemEnvironmentAPI = {
+  getEnvironment: () =>
+    api.get<Record<string, unknown>>('/system/environment'),
+
+  getCapabilities: () =>
+    api.get<Record<string, unknown>>('/system/capabilities'),
+};
+
 // ─── Market Coverage API ──────────────────────────────────────────────
 
 export type MarketTypeCoverage = {

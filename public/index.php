@@ -49,6 +49,7 @@ use Platform\AIEngine\AIEngineRoutes;
 use Platform\AIEngine\AIEngineService;
 use Platform\Microstructure\MicrostructureRoutes;
 use Platform\Core\Scheduler\MarketSchedulerRoutes;
+use Platform\Core\System\SystemEnvironmentRoutes;
 use Platform\Microstructure\MicrostructureService;
 use Platform\Backtesting\BacktestRoutes;
 use Platform\Backtesting\BacktestService;
@@ -181,6 +182,7 @@ PaperTradingRoutes::register($router);
 AIEngineRoutes::register($router);
 MicrostructureRoutes::register($router);
 MarketSchedulerRoutes::register($router);
+SystemEnvironmentRoutes::register($router);
 
 // Dispatch
 $request = new Request();

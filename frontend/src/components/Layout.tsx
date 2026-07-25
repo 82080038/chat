@@ -19,6 +19,7 @@ import {
   Globe,
   Database,
   CalendarClock,
+  Cpu,
 } from "lucide-react";
 import { MarketClock } from "@/components/MarketClock";
 
@@ -34,6 +35,7 @@ const navItems = [
   { to: "/market-coverage", label: "Cakupan Pasar", icon: Globe },
   { to: "/data-completeness", label: "Kelengkapan Data", icon: Database },
   { to: "/market-scheduler", label: "Jadwal Pasar", icon: CalendarClock },
+  { to: "/system-environment", label: "Lingkungan Sistem", icon: Cpu },
   { to: "/settings", label: "Pengaturan", icon: Settings },
 ];
 
