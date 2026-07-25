@@ -30,3 +30,6 @@ composer.phar
 # Built frontend (devs should run `npm run build` to generate)
 /public/dashboard/assets/*.js
 /public/dashboard/assets/*.css
+
+# Generated seed exports (run bin/export-seed.php to recreate)
+/database/seeds/exported_seed_*.sql
