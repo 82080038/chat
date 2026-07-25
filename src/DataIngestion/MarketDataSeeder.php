@@ -60,6 +60,13 @@ final class MarketDataSeeder
         ['yahoo' => '^TNX', 'ticker' => '^TNX', 'name' => 'US 10-Year Treasury Yield', 'asset_class' => 'FIXED_INCOME', 'instrument_type' => 'BOND_YIELD', 'currency' => 'USD', 'exchange_mic' => 'GLOBAL'],
         // Volatility
         ['yahoo' => '^VIX', 'ticker' => '^VIX', 'name' => 'CBOE Volatility Index', 'asset_class' => 'INDEX', 'instrument_type' => 'VOLATILITY_INDEX', 'currency' => 'USD', 'exchange_mic' => 'GLOBAL'],
+        // ETFs
+        ['yahoo' => 'EIDO', 'ticker' => 'EIDO', 'name' => 'iShares MSCI Indonesia ETF', 'asset_class' => 'EQUITY', 'instrument_type' => 'ETF', 'currency' => 'USD', 'exchange_mic' => 'GLOBAL'],
+        ['yahoo' => 'AAXJ', 'ticker' => 'AAXJ', 'name' => 'iShares MSCI All Country Asia ex Japan ETF', 'asset_class' => 'EQUITY', 'instrument_type' => 'ETF', 'currency' => 'USD', 'exchange_mic' => 'GLOBAL'],
+        ['yahoo' => 'VWO', 'ticker' => 'VWO', 'name' => 'Vanguard FTSE Emerging Markets ETF', 'asset_class' => 'EQUITY', 'instrument_type' => 'ETF', 'currency' => 'USD', 'exchange_mic' => 'GLOBAL'],
+        // Crypto
+        ['yahoo' => 'BTC-USD', 'ticker' => 'BTC-USD', 'name' => 'Bitcoin USD', 'asset_class' => 'CRYPTO', 'instrument_type' => 'SPOT', 'currency' => 'USD', 'exchange_mic' => 'CRYPTO'],
+        ['yahoo' => 'ETH-USD', 'ticker' => 'ETH-USD', 'name' => 'Ethereum USD', 'asset_class' => 'CRYPTO', 'instrument_type' => 'SPOT', 'currency' => 'USD', 'exchange_mic' => 'CRYPTO'],
     ];
 
     public function __construct(int $lookbackDays = 730, int $delaySeconds = 2)
@@ -168,10 +175,12 @@ final class MarketDataSeeder
         $exchangeId = $exchangeRow !== false ? $exchangeRow['exchange_id'] : null;
 
         if ($exchangeId === null) {
+            // Try CRYPTO exchange for crypto instruments
             $exchangeStmt = $this->db->prepare(
-                'SELECT exchange_id FROM market_master.exchange WHERE mic_code = "GLOBAL" LIMIT 1'
+                'SELECT exchange_id FROM market_master.exchange WHERE mic_code = :mic LIMIT 1'
             );
-            $exchangeStmt->execute();
+            $fallbackMic = $sym['exchange_mic'] === 'CRYPTO' ? 'CRYPTO' : 'GLOBAL';
+            $exchangeStmt->execute([':mic' => $fallbackMic]);
             $exchangeRow = $exchangeStmt->fetch();
             $exchangeId = $exchangeRow !== false ? $exchangeRow['exchange_id'] : null;
         }

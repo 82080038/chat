@@ -12,6 +12,7 @@ import Settings from "./pages/Settings";
 import Backtest from "./pages/Backtest";
 import PaperTrading from "./pages/PaperTrading";
 import AIEngine from "./pages/AIEngine";
+import MarketCoverage from "./pages/MarketCoverage";
 import { AuthProvider } from "./lib/auth";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
@@ -119,6 +120,16 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               <ProtectedRoute>
                 <Layout>
                   <AIEngine />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/market-coverage"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <MarketCoverage />
                 </Layout>
               </ProtectedRoute>
             }

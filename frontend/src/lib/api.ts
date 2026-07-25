@@ -913,3 +913,39 @@ export const DataIngestionAPI = {
   seedMarketData: (data?: { days?: number; delay?: number; symbol?: string }) =>
     api.post<{ total_records_ingested: number; symbols_processed: number; errors: number; details: Array<{ symbol: string; name: string; instrument_id?: string; records_ingested?: number; status: string; error?: string }> }>('/ingestion/seed-market-data', data ?? {}),
 };
+
+// ─── Market Coverage API ──────────────────────────────────────────────
+
+export type MarketTypeCoverage = {
+  asset_class: string;
+  instrument_type: string;
+  market_name: string;
+  description: string;
+  capabilities: string[];
+  data_source: string;
+  instrument_count: number;
+  ohlcv: { instruments_with_data: number; total_records: number; earliest_date: string; latest_date: string } | null;
+  signals: { signal_count: number; latest_signal: string } | null;
+  recommendations: { rec_count: number; latest_rec: string } | null;
+  positions: { position_count: number; total_quantity: number; total_unrealized_pnl: number } | null;
+  is_active: boolean;
+  has_live_data: boolean;
+};
+
+export type MarketCoverage = {
+  market_types: MarketTypeCoverage[];
+  exchanges: Array<{ name: string; country: string; mic_code: string; currency: string; status: string }>;
+  recent_recommendations: Array<Record<string, unknown>>;
+  recent_signals: Array<Record<string, unknown>>;
+  summary: {
+    total_supported_types: number;
+    active_market_types: number;
+    total_instruments: number;
+    instruments_with_live_data: number;
+    total_exchanges: number;
+  };
+};
+
+export const MarketCoverageAPI = {
+  getCoverage: () => api.get<MarketCoverage>('/market-coverage'),
+};

@@ -71,6 +71,7 @@ use Platform\Governance\GovernanceService;
 use Platform\Identity\IdentityRoutes;
 use Platform\Identity\IdentityService;
 use Platform\MarketMaster\MarketMasterRoutes;
+use Platform\MarketMaster\MarketCoverageRoutes;
 use Platform\MarketMaster\MarketMasterService;
 use Platform\Portfolio\PortfolioRoutes;
 use Platform\Portfolio\PortfolioService;
@@ -162,6 +163,7 @@ $router->get('/', function (Request $request) use ($app): Response {
 IdentityRoutes::register($router);
 ConfigRoutes::register($router);
 MarketMasterRoutes::register($router);
+MarketCoverageRoutes::register($router);
 FundamentalRoutes::register($router);
 AnalyticsRoutes::register($router);
 RiskRoutes::register($router);

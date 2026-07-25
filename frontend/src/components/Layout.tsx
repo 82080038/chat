@@ -16,6 +16,7 @@ import {
   FlaskConical,
   Brain,
   Newspaper,
+  Globe,
 } from "lucide-react";
 
 const navItems = [
@@ -27,6 +28,7 @@ const navItems = [
   { to: "/backtest", label: "Backtesting", icon: FlaskConical },
   { to: "/risk", label: "Risk Monitor", icon: Shield },
   { to: "/ai-engine", label: "AI Engine", icon: Brain },
+  { to: "/market-coverage", label: "Market Coverage", icon: Globe },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
