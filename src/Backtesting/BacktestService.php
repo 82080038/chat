@@ -235,7 +235,7 @@ final class BacktestService extends BaseService implements BacktestServiceInterf
 
         return [
             'total_return' => round($totalReturn, 4),
-            'annualized_return' => round($totalReturn * 0.4, 4),
+            'annualized_return' => round($this->calculateAnnualizedReturn($totalReturn, $trades), 4),
             'sharpe_ratio' => round($sharpe, 4),
             'sortino_ratio' => round($sortino, 4),
             'max_drawdown' => round($maxDrawdown, 4),
@@ -252,28 +252,57 @@ final class BacktestService extends BaseService implements BacktestServiceInterf
 
     private function replayStrategy(array $run, array $priceData): array
     {
-        $trades = [];
-        $position = null;
         $instrumentId = $run['instrument_id'] ?? 'unknown';
+        $strategyName = strtoupper($run['strategy_name'] ?? 'BUY_AND_HOLD');
+        $initialCapital = (float) ($run['initial_capital'] ?? 100000);
+        $params = $run['parameters'] ?? [];
+        if (!is_array($params)) {
+            $params = [];
+        }
 
         $sorted = $priceData;
         usort($sorted, function ($a, $b) {
             return strcmp($a['date'] ?? '', $b['date'] ?? '');
         });
 
+        $closes = [];
+        $dates = [];
         foreach ($sorted as $bar) {
-            $price = (float) ($bar['close'] ?? $bar['price'] ?? 0);
-            $date = $bar['date'] ?? '';
+            $closes[] = (float) ($bar['close'] ?? $bar['price'] ?? 0);
+            $dates[] = $bar['date'] ?? '';
+        }
 
-            if ($position === null && $price > 0) {
+        $signals = $this->generateSignals($strategyName, $closes, $params);
+
+        $trades = [];
+        $position = null;
+        $capital = $initialCapital;
+
+        for ($i = 0; $i < count($sorted); $i++) {
+            $price = $closes[$i];
+            $date = $dates[$i];
+            $signal = $signals[$i] ?? 'HOLD';
+
+            if ($price <= 0) {
+                continue;
+            }
+
+            if ($position === null && $signal === 'BUY') {
+                $maxShares = (int) ($capital / $price);
+                $quantity = $maxShares > 0 ? $maxShares : 0;
+                if ($quantity === 0) {
+                    continue;
+                }
                 $position = [
                     'instrument_id' => $instrumentId,
                     'side' => 'BUY',
-                    'quantity' => 100,
+                    'quantity' => $quantity,
                     'entry_price' => $price,
                     'entry_date' => $date,
+                    'capital_at_entry' => $capital,
                 ];
-            } elseif ($position !== null && $price > 0) {
+                $capital -= $quantity * $price;
+            } elseif ($position !== null && $signal === 'SELL') {
                 $pnl = ($price - $position['entry_price']) * $position['quantity'];
                 $pnlPct = $position['entry_price'] > 0
                     ? (($price - $position['entry_price']) / $position['entry_price']) * 100
@@ -290,11 +319,246 @@ final class BacktestService extends BaseService implements BacktestServiceInterf
                     'pnl' => $pnl,
                     'pnl_pct' => $pnlPct,
                 ];
+                $capital += $position['quantity'] * $price;
                 $position = null;
             }
         }
 
+        if ($position !== null && count($closes) > 0) {
+            $lastIdx = count($closes) - 1;
+            $lastPrice = $closes[$lastIdx];
+            $lastDate = $dates[$lastIdx];
+            if ($lastPrice > 0) {
+                $pnl = ($lastPrice - $position['entry_price']) * $position['quantity'];
+                $pnlPct = $position['entry_price'] > 0
+                    ? (($lastPrice - $position['entry_price']) / $position['entry_price']) * 100
+                    : 0.0;
+                $trades[] = [
+                    'instrument_id' => $position['instrument_id'],
+                    'side' => $position['side'],
+                    'quantity' => $position['quantity'],
+                    'entry_price' => $position['entry_price'],
+                    'exit_price' => $lastPrice,
+                    'entry_date' => $position['entry_date'],
+                    'exit_date' => $lastDate,
+                    'pnl' => $pnl,
+                    'pnl_pct' => $pnlPct,
+                ];
+            }
+        }
+
         return $trades;
+    }
+
+    /**
+     * Generate trading signals based on strategy name.
+     *
+     * Supported strategies:
+     * - SMA_CROSSOVER: Buy when short SMA crosses above long SMA, sell on cross below
+     * - RSI_MEAN_REVERSION: Buy when RSI < oversold, sell when RSI > overbought
+     * - MOMENTUM: Buy when price > SMA and momentum positive, sell on negative momentum
+     * - BUY_AND_HOLD: Buy on first bar, sell on last bar
+     * - MEAN_REVERSION: Buy when price deviates below SMA by threshold, sell at SMA
+     *
+     * @param string $strategyName
+     * @param array<int, float> $closes
+     * @param array<string, mixed> $params
+     * @return array<int, string> Array of signals: BUY, SELL, or HOLD
+     */
+    private function generateSignals(string $strategyName, array $closes, array $params): array
+    {
+        $n = count($closes);
+        $signals = array_fill(0, $n, 'HOLD');
+
+        if ($n === 0) {
+            return $signals;
+        }
+
+        switch ($strategyName) {
+            case 'SMA_CROSSOVER':
+            case 'SMA_CROSS':
+                $shortPeriod = (int) ($params['short_period'] ?? 10);
+                $longPeriod = (int) ($params['long_period'] ?? 30);
+                $shortSma = $this->calculateSMA($closes, $shortPeriod);
+                $longSma = $this->calculateSMA($closes, $longPeriod);
+                $prevAbove = false;
+                for ($i = 0; $i < $n; $i++) {
+                    if ($shortSma[$i] === null || $longSma[$i] === null) {
+                        continue;
+                    }
+                    $currentlyAbove = $shortSma[$i] > $longSma[$i];
+                    if ($currentlyAbove && !$prevAbove) {
+                        $signals[$i] = 'BUY';
+                    } elseif (!$currentlyAbove && $prevAbove) {
+                        $signals[$i] = 'SELL';
+                    }
+                    $prevAbove = $currentlyAbove;
+                }
+                break;
+
+            case 'RSI_MEAN_REVERSION':
+            case 'RSI':
+                $rsiPeriod = (int) ($params['rsi_period'] ?? 14);
+                $oversold = (float) ($params['oversold'] ?? 30);
+                $overbought = (float) ($params['overbought'] ?? 70);
+                $rsi = $this->calculateRSI($closes, $rsiPeriod);
+                for ($i = 0; $i < $n; $i++) {
+                    if ($rsi[$i] === null) {
+                        continue;
+                    }
+                    if ($rsi[$i] < $oversold) {
+                        $signals[$i] = 'BUY';
+                    } elseif ($rsi[$i] > $overbought) {
+                        $signals[$i] = 'SELL';
+                    }
+                }
+                break;
+
+            case 'MOMENTUM':
+                $smaPeriod = (int) ($params['sma_period'] ?? 20);
+                $momentumPeriod = (int) ($params['momentum_period'] ?? 10);
+                $sma = $this->calculateSMA($closes, $smaPeriod);
+                for ($i = $momentumPeriod; $i < $n; $i++) {
+                    if ($sma[$i] === null) {
+                        continue;
+                    }
+                    $momentum = $closes[$i] - $closes[$i - $momentumPeriod];
+                    if ($closes[$i] > $sma[$i] && $momentum > 0) {
+                        $signals[$i] = 'BUY';
+                    } elseif ($closes[$i] < $sma[$i] && $momentum < 0) {
+                        $signals[$i] = 'SELL';
+                    }
+                }
+                break;
+
+            case 'MEAN_REVERSION':
+            case 'BOLLINGER':
+                $smaPeriod = (int) ($params['sma_period'] ?? 20);
+                $deviation = (float) ($params['deviation'] ?? 2.0);
+                $sma = $this->calculateSMA($closes, $smaPeriod);
+                for ($i = $smaPeriod; $i < $n; $i++) {
+                    if ($sma[$i] === null) {
+                        continue;
+                    }
+                    $slice = array_slice($closes, $i - $smaPeriod + 1, $smaPeriod);
+                    $stdDev = $this->stdDev($slice);
+                    $lowerBand = $sma[$i] - $deviation * $stdDev;
+                    $upperBand = $sma[$i] + $deviation * $stdDev;
+                    if ($closes[$i] < $lowerBand) {
+                        $signals[$i] = 'BUY';
+                    } elseif ($closes[$i] > $upperBand) {
+                        $signals[$i] = 'SELL';
+                    }
+                }
+                break;
+
+            case 'BUY_AND_HOLD':
+            default:
+                if ($n > 0) {
+                    $signals[0] = 'BUY';
+                    if ($n > 1) {
+                        $signals[$n - 1] = 'SELL';
+                    }
+                }
+                break;
+        }
+
+        return $signals;
+    }
+
+    /**
+     * Calculate Simple Moving Average for each point.
+     * Returns array of floats (or null for periods without enough data).
+     *
+     * @param array<int, float> $values
+     * @param int $period
+     * @return array<int, ?float>
+     */
+    private function calculateSMA(array $values, int $period): array
+    {
+        $n = count($values);
+        $sma = array_fill(0, $n, null);
+        if ($period <= 0 || $n < $period) {
+            return $sma;
+        }
+        $sum = 0.0;
+        for ($i = 0; $i < $n; $i++) {
+            $sum += $values[$i];
+            if ($i >= $period) {
+                $sum -= $values[$i - $period];
+            }
+            if ($i >= $period - 1) {
+                $sma[$i] = $sum / $period;
+            }
+        }
+        return $sma;
+    }
+
+    /**
+     * Calculate Relative Strength Index.
+     *
+     * @param array<int, float> $closes
+     * @param int $period
+     * @return array<int, ?float>
+     */
+    private function calculateRSI(array $closes, int $period): array
+    {
+        $n = count($closes);
+        $rsi = array_fill(0, $n, null);
+        if ($n <= $period) {
+            return $rsi;
+        }
+
+        $gains = [];
+        $losses = [];
+        for ($i = 1; $i < $n; $i++) {
+            $change = $closes[$i] - $closes[$i - 1];
+            $gains[] = max(0, $change);
+            $losses[] = max(0, -$change);
+        }
+
+        $avgGain = array_sum(array_slice($gains, 0, $period)) / $period;
+        $avgLoss = array_sum(array_slice($losses, 0, $period)) / $period;
+
+        if ($avgLoss == 0) {
+            $rsi[$period] = 100.0;
+        } else {
+            $rs = $avgGain / $avgLoss;
+            $rsi[$period] = 100 - (100 / (1 + $rs));
+        }
+
+        for ($i = $period + 1; $i < $n; $i++) {
+            $avgGain = (($avgGain * ($period - 1)) + $gains[$i - 1]) / $period;
+            $avgLoss = (($avgLoss * ($period - 1)) + $losses[$i - 1]) / $period;
+            if ($avgLoss == 0) {
+                $rsi[$i] = 100.0;
+            } else {
+                $rs = $avgGain / $avgLoss;
+                $rsi[$i] = 100 - (100 / (1 + $rs));
+            }
+        }
+
+        return $rsi;
+    }
+
+    /**
+     * Calculate standard deviation of an array of values.
+     *
+     * @param array<int, float> $values
+     * @return float
+     */
+    private function stdDev(array $values): float
+    {
+        $count = count($values);
+        if ($count === 0) {
+            return 0.0;
+        }
+        $mean = array_sum($values) / $count;
+        $variance = 0.0;
+        foreach ($values as $v) {
+            $variance += pow($v - $mean, 2);
+        }
+        return sqrt($variance / $count);
     }
 
     private function persistTrades(string $runId, array $trades): void
@@ -375,6 +639,40 @@ final class BacktestService extends BaseService implements BacktestServiceInterf
             ':now' => $this->now(),
             ':id' => $runId,
         ]);
+    }
+
+    private function calculateAnnualizedReturn(float $totalReturn, array $trades): float
+    {
+        if (count($trades) === 0) {
+            return 0.0;
+        }
+
+        $firstDate = null;
+        $lastDate = null;
+        foreach ($trades as $trade) {
+            $entry = $trade['entry_date'] ?? null;
+            $exit = $trade['exit_date'] ?? null;
+            if ($entry !== null && ($firstDate === null || strcmp($entry, $firstDate) < 0)) {
+                $firstDate = $entry;
+            }
+            if ($exit !== null && ($lastDate === null || strcmp($exit, $lastDate) > 0)) {
+                $lastDate = $exit;
+            }
+        }
+
+        if ($firstDate === null || $lastDate === null) {
+            return $totalReturn;
+        }
+
+        $days = (strtotime($lastDate) - strtotime($firstDate)) / 86400;
+        if ($days <= 0) {
+            return $totalReturn;
+        }
+
+        $tradingDays = max(1, (int) round($days * 252 / 365));
+        $decimalReturn = $totalReturn / 100;
+        $annualized = pow(1 + $decimalReturn, 252 / $tradingDays) - 1;
+        return $annualized * 100;
     }
 
     private function calculateSharpe(array $returns): float

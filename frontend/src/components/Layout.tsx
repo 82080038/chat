@@ -13,6 +13,9 @@ import {
   TrendingUp,
   Menu,
   X,
+  FlaskConical,
+  Brain,
+  Newspaper,
 } from "lucide-react";
 
 const navItems = [
@@ -20,7 +23,10 @@ const navItems = [
   { to: "/instruments", label: "Instruments", icon: Search },
   { to: "/screening", label: "Screening", icon: LineChart },
   { to: "/orders", label: "Orders / OMS", icon: ShoppingCart },
+  { to: "/paper-trading", label: "Paper Trading", icon: Newspaper },
+  { to: "/backtest", label: "Backtesting", icon: FlaskConical },
   { to: "/risk", label: "Risk Monitor", icon: Shield },
+  { to: "/ai-engine", label: "AI Engine", icon: Brain },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 

@@ -24,6 +24,8 @@ final class DataIngestionRoutes
         );
         $router->get('/ingestion/status', [self::class, 'getIngestionStatus'], ['bearer']);
         $router->get('/ingestion/quality/{instrumentId}', [self::class, 'dataQuality'], ['bearer']);
+        $router->post('/ingestion/fetch', [self::class, 'fetchFromExternal'], ['bearer']);
+        $router->post('/ingestion/seed-market-data', [self::class, 'seedMarketData'], ['bearer']);
     }
 
     private static function service(): DataIngestionService
@@ -88,6 +90,53 @@ final class DataIngestionRoutes
     {
         $instrumentId = (string) $request->getParam('instrumentId');
         return Response::ok(self::service()->runDataQualityChecks($instrumentId));
+    }
+
+    public static function fetchFromExternal(Request $request): Response
+    {
+        $data = $request->getAllBody();
+        if (!isset($data['provider']) || !isset($data['symbol'])) {
+            return Response::error(
+                422,
+                'VALIDATION_ERROR',
+                'Fields provider and symbol are required'
+            );
+        }
+        $result = self::service()->fetchFromExternal(
+            $data['provider'],
+            $data['symbol'],
+            $data['from_date'] ?? null,
+            $data['to_date'] ?? null
+        );
+        return Response::ok($result);
+    }
+
+    public static function seedMarketData(Request $request): Response
+    {
+        $data = $request->getAllBody();
+        $days = (int) ($data['days'] ?? 730);
+        $delay = (int) ($data['delay'] ?? 2);
+        $symbol = $data['symbol'] ?? null;
+
+        $seeder = new MarketDataSeeder($days, $delay);
+        $results = $seeder->run($symbol);
+
+        $totalIngested = 0;
+        $errors = 0;
+        foreach ($results as $r) {
+            if ($r['status'] === 'OK') {
+                $totalIngested += $r['records_ingested'];
+            } else {
+                $errors++;
+            }
+        }
+
+        return Response::ok([
+            'total_records_ingested' => $totalIngested,
+            'symbols_processed' => count($results),
+            'errors' => $errors,
+            'details' => $results,
+        ]);
     }
 
     private static function parsePage(array $query): array

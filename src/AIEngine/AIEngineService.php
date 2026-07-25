@@ -10,15 +10,36 @@ use Platform\Core\Exceptions\ApiException;
 final class AIEngineService extends BaseService implements AIEngineServiceInterface
 {
     private const POSITIVE_WORDS = [
-        'surge', 'jump', 'rise', 'gain', 'profit', 'growth', 'upgrade',
-        'bullish', 'outperform', 'beat', 'strong', 'record', 'high',
-        'naik', 'untung', 'tumbuh', 'positif', 'tinggi',
+        'surge' => 3, 'jump' => 3, 'soar' => 3, 'rally' => 2, 'rise' => 2,
+        'gain' => 2, 'profit' => 2, 'growth' => 2, 'upgrade' => 3,
+        'bullish' => 3, 'outperform' => 3, 'beat' => 2, 'strong' => 2,
+        'record' => 2, 'high' => 1, 'breakthrough' => 3, 'surge' => 3,
+        'dividend' => 2, 'buyback' => 2, 'expand' => 2, 'exceed' => 2,
+        'robust' => 2, 'solid' => 2, 'impressive' => 3, 'remarkable' => 3,
+        'naik' => 2, 'untung' => 2, 'tumbuh' => 2, 'positif' => 2, 'tinggi' => 1,
+        'menguat' => 2, 'melompat' => 3, 'meroket' => 3, 'mencatat' => 1,
     ];
 
     private const NEGATIVE_WORDS = [
-        'drop', 'fall', 'decline', 'loss', 'downgrade', 'bearish',
-        'underperform', 'miss', 'weak', 'low', 'crash', 'plunge',
-        'turun', 'rugi', 'lemah', 'negatif', 'rendah',
+        'drop' => 3, 'fall' => 2, 'decline' => 2, 'loss' => 3, 'downgrade' => 3,
+        'bearish' => 3, 'underperform' => 3, 'miss' => 2, 'weak' => 2,
+        'low' => 1, 'crash' => 3, 'plunge' => 3, 'sell' => 2, 'dump' => 3,
+        'collapse' => 3, 'slump' => 2, 'tumble' => 3, 'warning' => 2,
+        'fraud' => 3, 'investigation' => 2, 'lawsuit' => 2, 'default' => 3,
+        'bankrupt' => 3, 'restructure' => 2, 'halt' => 2, 'suspend' => 2,
+        'turun' => 2, 'rugi' => 3, 'lemah' => 2, 'negatif' => 2, 'rendah' => 1,
+        'melemah' => 2, 'anjlok' => 3, 'terjun' => 3, 'merosot' => 3,
+    ];
+
+    private const NEGATION_WORDS = [
+        'not', 'no', 'never', 'without', 'despite', 'against',
+        'tidak', 'bukan', 'tanpa', 'jangan',
+    ];
+
+    private const INTENSIFIER_WORDS = [
+        'very' => 1.5, 'extremely' => 2.0, 'significantly' => 1.5,
+        'substantially' => 1.5, 'highly' => 1.5, 'remarkably' => 2.0,
+        'sangat' => 1.5, 'sangatlah' => 2.0, 'amat' => 1.5,
     ];
 
     private const PATTERNS = [
@@ -42,26 +63,68 @@ final class AIEngineService extends BaseService implements AIEngineServiceInterf
         }
 
         $text = strtolower($data['text']);
-        $positive = 0;
-        $negative = 0;
+        $words = explode(' ', $text);
+        $wordCount = count($words);
         $entities = $this->extractEntities($data['text']);
 
-        foreach (self::POSITIVE_WORDS as $word) {
-            $count = substr_count($text, $word);
-            $positive += $count;
+        $positiveScore = 0.0;
+        $negativeScore = 0.0;
+        $positive = 0;
+        $negative = 0;
+
+        foreach ($words as $i => $word) {
+            $word = trim($word, ".,!?;:\"'()[]{}");
+            if ($word === '') {
+                continue;
+            }
+
+            $weight = 1.0;
+            $negated = false;
+
+            if ($i > 0) {
+                $prevWord = trim($words[$i - 1], ".,!?;:\"'()[]{}");
+                if (in_array($prevWord, self::NEGATION_WORDS, true)) {
+                    $negated = true;
+                }
+                if (isset(self::INTENSIFIER_WORDS[$prevWord])) {
+                    $weight *= self::INTENSIFIER_WORDS[$prevWord];
+                }
+            }
+
+            if ($i > 1) {
+                $prevPrev = trim($words[$i - 2], ".,!?;:\"'()[]{}");
+                if (in_array($prevPrev, self::NEGATION_WORDS, true)) {
+                    $negated = true;
+                }
+            }
+
+            if (isset(self::POSITIVE_WORDS[$word])) {
+                $value = self::POSITIVE_WORDS[$word] * $weight;
+                if ($negated) {
+                    $negativeScore += $value;
+                    $negative++;
+                } else {
+                    $positiveScore += $value;
+                    $positive++;
+                }
+            } elseif (isset(self::NEGATIVE_WORDS[$word])) {
+                $value = self::NEGATIVE_WORDS[$word] * $weight;
+                if ($negated) {
+                    $positiveScore += $value;
+                    $positive++;
+                } else {
+                    $negativeScore += $value;
+                    $negative++;
+                }
+            }
         }
 
-        foreach (self::NEGATIVE_WORDS as $word) {
-            $count = substr_count($text, $word);
-            $negative += $count;
-        }
-
-        $total = $positive + $negative;
-        if ($total === 0) {
+        $totalScore = $positiveScore + $negativeScore;
+        if ($totalScore <= 0.0) {
             $score = 0.0;
             $label = 'NEUTRAL';
         } else {
-            $score = round((($positive - $negative) / $total) * 100, 2);
+            $score = round((($positiveScore - $negativeScore) / $totalScore) * 100, 2);
             $label = $score > 20 ? 'POSITIVE' : ($score < -20 ? 'NEGATIVE' : 'NEUTRAL');
         }
 
@@ -94,7 +157,10 @@ final class AIEngineService extends BaseService implements AIEngineServiceInterf
             ':meta' => json_encode([
                 'positive_count' => $positive,
                 'negative_count' => $negative,
-                'word_count' => str_word_count($text),
+                'positive_score' => round($positiveScore, 2),
+                'negative_score' => round($negativeScore, 2),
+                'word_count' => $wordCount,
+                'method' => 'weighted_keyword',
             ]),
             ':now' => $now,
         ]);
@@ -414,19 +480,42 @@ final class AIEngineService extends BaseService implements AIEngineServiceInterf
     private function extractEntities(string $text): array
     {
         $entities = [];
-        $tickerPattern = '/\b([A-Z]{4})\b/';
+
+        $tickerPattern = '/\b([A-Z]{4,5})\b/';
         if (preg_match_all($tickerPattern, $text, $matches)) {
-            $entities['tickers'] = $matches[1];
+            $entities['tickers'] = array_values(array_unique($matches[1]));
         }
 
-        $companyKeywords = ['bank', 'corp', 'group', 'energy', 'mining'];
-        $words = explode(' ', $text);
-        foreach ($words as $i => $word) {
-            foreach ($companyKeywords as $kw) {
-                if (str_contains($word, $kw)) {
-                    $entities['companies'][] = $word;
+        $moneyPattern = '/(?:Rp\.?|USD|IDR|\$)\s?([\d,]+(?:\.\d+)?(?:\s?(?:miliar|triliun|billion|million|B|M))?)/i';
+        if (preg_match_all($moneyPattern, $text, $moneyMatches)) {
+            $entities['monetary'] = $moneyMatches[0];
+        }
+
+        $percentPattern = '/([\d]+(?:\.\d+)?)\s?%/';
+        if (preg_match_all($percentPattern, $text, $percentMatches)) {
+            $entities['percentages'] = $percentMatches[0];
+        }
+
+        $datePattern = '/\b(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{4}[\/-]\d{1,2}[\/-]\d{1,2})\b/';
+        if (preg_match_all($datePattern, $text, $dateMatches)) {
+            $entities['dates'] = $dateMatches[0];
+        }
+
+        $companyKeywords = ['bank', 'corp', 'group', 'energy', 'mining', 'telecom', 'pharma'];
+        $sentences = preg_split('/[.!,]/', $text);
+        foreach ($sentences as $sentence) {
+            $words = explode(' ', trim($sentence));
+            foreach ($words as $i => $word) {
+                $cleanWord = trim($word, ".,!?;:\"'()[]{}");
+                foreach ($companyKeywords as $kw) {
+                    if (stripos($cleanWord, $kw) !== false && strlen($cleanWord) > 3) {
+                        $entities['companies'][] = $cleanWord;
+                    }
                 }
             }
+        }
+        if (isset($entities['companies'])) {
+            $entities['companies'] = array_values(array_unique($entities['companies']));
         }
 
         return $entities;
@@ -460,6 +549,7 @@ final class AIEngineService extends BaseService implements AIEngineServiceInterf
         $highs = array_column($priceData, 'high');
         $lows = array_column($priceData, 'low');
         $closes = array_column($priceData, 'close');
+        $n = count($closes);
 
         $maxHigh = max($highs);
         $minLow = min($lows);
@@ -469,12 +559,10 @@ final class AIEngineService extends BaseService implements AIEngineServiceInterf
             return 'FLAT';
         }
 
-        $firstHalf = array_slice($closes, 0, (int) (count($closes) / 2));
-        $secondHalf = array_slice($closes, (int) (count($closes) / 2));
-        $firstAvg = array_sum($firstHalf) / count($firstHalf);
-        $secondAvg = array_sum($secondHalf) / count($secondHalf);
-
-        $trend = ($secondAvg - $firstAvg) / $firstAvg;
+        $sma = $this->computeSMA($closes, min(10, (int) ($n / 2)));
+        $firstSma = $sma[0];
+        $lastSma = $sma[count($sma) - 1];
+        $trend = $firstSma > 0 ? ($lastSma - $firstSma) / $firstSma : 0;
 
         $topCount = 0;
         $topThreshold = $maxHigh * 0.98;
@@ -492,23 +580,67 @@ final class AIEngineService extends BaseService implements AIEngineServiceInterf
             }
         }
 
-        if ($topCount >= 2 && abs($trend) < 0.02) {
+        $highVariance = $this->variance($highs);
+        $lowVariance = $this->variance($lows);
+        $highCV = $firstSma > 0 ? sqrt($highVariance) / $firstSma : 0;
+        $lowCV = $firstSma > 0 ? sqrt($lowVariance) / $firstSma : 0;
+
+        if ($topCount >= 2 && abs($trend) < 0.02 && $highCV < 0.02) {
             return 'DOUBLE_TOP';
         }
 
-        if ($bottomCount >= 2 && abs($trend) < 0.02) {
+        if ($bottomCount >= 2 && abs($trend) < 0.02 && $lowCV < 0.02) {
             return 'DOUBLE_BOTTOM';
         }
 
-        if ($trend > 0.03) {
+        if ($trend > 0.03 && $lowCV < 0.03) {
             return 'ASCENDING_TRIANGLE';
         }
 
-        if ($trend < -0.03) {
+        if ($trend < -0.03 && $highCV < 0.03) {
             return 'DESCENDING_TRIANGLE';
         }
 
-        return 'CHANNEL';
+        if ($trend > 0.05) {
+            return 'UPTREND_CHANNEL';
+        }
+
+        if ($trend < -0.05) {
+            return 'DOWNTREND_CHANNEL';
+        }
+
+        return 'SIDEWAYS_CHANNEL';
+    }
+
+    private function computeSMA(array $values, int $period): array
+    {
+        $n = count($values);
+        $result = [];
+        $sum = 0.0;
+        for ($i = 0; $i < $n; $i++) {
+            $sum += $values[$i];
+            if ($i >= $period) {
+                $sum -= $values[$i - $period];
+            }
+            if ($i >= $period - 1) {
+                $result[] = $sum / $period;
+            }
+        }
+        return $result;
+    }
+
+    private function variance(array $values): float
+    {
+        $count = count($values);
+        if ($count === 0) {
+            return 0.0;
+        }
+        $mean = array_sum($values) / $count;
+        $sum = 0.0;
+        foreach ($values as $v) {
+            $sum += pow($v - $mean, 2);
+        }
+        return $sum / $count;
     }
 
     private function calculatePatternConfidence(array $priceData, string $pattern): float

@@ -219,6 +219,19 @@ final class RiskService extends BaseService implements RiskServiceInterface
         $this->validateRequired($data, ['assessment_type']);
         $id = $this->uuid();
         $now = $this->now();
+
+        $calculated = $this->computeRiskMetrics($portfolioId);
+
+        $var95 = $data['var_95'] ?? $calculated['var_95'];
+        $var99 = $data['var_99'] ?? $calculated['var_99'];
+        $expectedShortfall = $data['expected_shortfall'] ?? $calculated['expected_shortfall'];
+        $portfolioBeta = $data['portfolio_beta'] ?? $calculated['portfolio_beta'];
+        $sharpe = $data['sharpe_ratio'] ?? $calculated['sharpe_ratio'];
+        $sortino = $data['sortino_ratio'] ?? $calculated['sortino_ratio'];
+        $maxDrawdown = $data['max_drawdown'] ?? $calculated['max_drawdown'];
+        $volatility = $data['volatility'] ?? $calculated['volatility'];
+        $concentration = $data['concentration_index'] ?? $calculated['concentration_index'];
+
         $stmt = $this->db->prepare(
             'INSERT INTO risk.risk_assessment
              (risk_assessment_id, portfolio_id, assessment_type, var_95, var_99,
@@ -235,21 +248,248 @@ final class RiskService extends BaseService implements RiskServiceInterface
             ':id' => $id,
             ':portfolio_id' => $portfolioId,
             ':assessment_type' => $data['assessment_type'],
-            ':var_95' => $data['var_95'] ?? null,
-            ':var_99' => $data['var_99'] ?? null,
-            ':expected_shortfall' => $data['expected_shortfall'] ?? null,
-            ':portfolio_beta' => $data['portfolio_beta'] ?? null,
-            ':sharpe' => $data['sharpe_ratio'] ?? null,
-            ':sortino' => $data['sortino_ratio'] ?? null,
-            ':max_dd' => $data['max_drawdown'] ?? null,
-            ':volatility' => $data['volatility'] ?? null,
-            ':concentration' => $data['concentration_index'] ?? null,
-            ':currency' => $data['currency'] ?? null,
+            ':var_95' => $var95,
+            ':var_99' => $var99,
+            ':expected_shortfall' => $expectedShortfall,
+            ':portfolio_beta' => $portfolioBeta,
+            ':sharpe' => $sharpe,
+            ':sortino' => $sortino,
+            ':max_dd' => $maxDrawdown,
+            ':volatility' => $volatility,
+            ':concentration' => $concentration,
+            ':currency' => $data['currency'] ?? 'IDR',
             ':now1' => $now,
-            ':model_version' => $data['model_version'] ?? null,
+            ':model_version' => $data['model_version'] ?? 'historical-v1',
             ':now2' => $now,
         ]);
         return $this->getRiskAssessment($id);
+    }
+
+    /**
+     * Compute risk metrics from actual portfolio positions and historical returns.
+     *
+     * Uses historical VaR method: collects daily returns for each position,
+     * computes weighted portfolio returns, then derives VaR at 95% and 99%
+     * confidence levels, Expected Shortfall, volatility, Sharpe, Sortino,
+     * max drawdown, concentration index (Herfindahl), and portfolio beta
+     * (using market proxy if available).
+     *
+     * @param string $portfolioId
+     * @return array{var_95: ?float, var_99: ?float, expected_shortfall: ?float, portfolio_beta: ?float, sharpe_ratio: ?float, sortino_ratio: ?float, max_drawdown: ?float, volatility: ?float, concentration_index: ?float}
+     */
+    private function computeRiskMetrics(string $portfolioId): array
+    {
+        $positions = $this->db->prepare(
+            'SELECT instrument_id, quantity, average_cost
+             FROM portfolio.position WHERE portfolio_id = :pid AND status = "OPEN"'
+        );
+        $positions->execute([':pid' => $portfolioId]);
+        $rows = $positions->fetchAll();
+
+        if (count($rows) === 0) {
+            return [
+                'var_95' => null, 'var_99' => null, 'expected_shortfall' => null,
+                'portfolio_beta' => null, 'sharpe_ratio' => null, 'sortino_ratio' => null,
+                'max_drawdown' => null, 'volatility' => null, 'concentration_index' => null,
+            ];
+        }
+
+        $weights = [];
+        $positionReturns = [];
+        $totalValue = 0.0;
+        $positionValues = [];
+
+        foreach ($rows as $pos) {
+            $instrumentId = $pos['instrument_id'];
+            $quantity = (float) $pos['quantity'];
+            $avgCost = (float) $pos['average_cost'];
+            $value = $quantity * $avgCost;
+            $totalValue += $value;
+            $positionValues[$instrumentId] = $value;
+            $positionReturns[$instrumentId] = $this->getDailyReturns($instrumentId, 120);
+        }
+
+        if ($totalValue <= 0) {
+            return [
+                'var_95' => null, 'var_99' => null, 'expected_shortfall' => null,
+                'portfolio_beta' => null, 'sharpe_ratio' => null, 'sortino_ratio' => null,
+                'max_drawdown' => null, 'volatility' => null, 'concentration_index' => null,
+            ];
+        }
+
+        foreach ($positionValues as $instId => $value) {
+            $weights[$instId] = $value / $totalValue;
+        }
+
+        $minReturns = PHP_INT_MAX;
+        foreach ($positionReturns as $returns) {
+            $minReturns = min($minReturns, count($returns));
+        }
+
+        if ($minReturns < 2) {
+            $concentration = $this->herfindahlIndex($weights);
+            return [
+                'var_95' => null, 'var_99' => null, 'expected_shortfall' => null,
+                'portfolio_beta' => null, 'sharpe_ratio' => null, 'sortino_ratio' => null,
+                'max_drawdown' => null, 'volatility' => null,
+                'concentration_index' => round($concentration, 4),
+            ];
+        }
+
+        $portfolioReturns = [];
+        for ($i = 0; $i < $minReturns; $i++) {
+            $weightedReturn = 0.0;
+            foreach ($weights as $instId => $w) {
+                $returns = $positionReturns[$instId];
+                $idx = count($returns) - $minReturns + $i;
+                $weightedReturn += $w * $returns[$idx];
+            }
+            $portfolioReturns[] = $weightedReturn;
+        }
+
+        sort($portfolioReturns);
+        $n = count($portfolioReturns);
+
+        $var95Idx = (int) floor(0.05 * $n);
+        $var99Idx = (int) floor(0.01 * $n);
+        $var95Idx = min($var95Idx, $n - 1);
+        $var99Idx = min($var99Idx, $n - 1);
+
+        $var95 = $portfolioReturns[$var95Idx];
+        $var99 = $portfolioReturns[$var99Idx];
+
+        $tailReturns = [];
+        for ($i = 0; $i <= $var95Idx; $i++) {
+            $tailReturns[] = $portfolioReturns[$i];
+        }
+        $expectedShortfall = count($tailReturns) > 0
+            ? array_sum($tailReturns) / count($tailReturns)
+            : $var95;
+
+        $meanReturn = array_sum($portfolioReturns) / $n;
+        $variance = 0.0;
+        foreach ($portfolioReturns as $r) {
+            $variance += pow($r - $meanReturn, 2);
+        }
+        $stdDev = sqrt($variance / $n);
+        $volatility = $stdDev * sqrt(252);
+
+        $sharpe = $stdDev > 0
+            ? ($meanReturn / $stdDev) * sqrt(252)
+            : 0.0;
+
+        $downsideReturns = array_filter($portfolioReturns, fn($r) => $r < 0);
+        $downsideDev = 0.0;
+        if (count($downsideReturns) > 0) {
+            $dsVar = 0.0;
+            foreach ($downsideReturns as $r) {
+                $dsVar += $r * $r;
+            }
+            $downsideDev = sqrt($dsVar / $n);
+        }
+        $sortino = $downsideDev > 0
+            ? ($meanReturn / $downsideDev) * sqrt(252)
+            : ($meanReturn > 0 ? 999.99 : 0.0);
+
+        $cumulative = 1.0;
+        $peak = 1.0;
+        $maxDrawdown = 0.0;
+        foreach ($portfolioReturns as $r) {
+            $cumulative *= (1 + $r);
+            $peak = max($peak, $cumulative);
+            if ($peak > 0) {
+                $dd = ($peak - $cumulative) / $peak;
+                $maxDrawdown = max($maxDrawdown, $dd);
+            }
+        }
+        $maxDrawdown *= 100;
+
+        $concentration = $this->herfindahlIndex($weights);
+
+        $portfolioBeta = $this->calculatePortfolioBeta($weights, $positionReturns, $minReturns);
+
+        return [
+            'var_95' => round($var95 * 100, 4),
+            'var_99' => round($var99 * 100, 4),
+            'expected_shortfall' => round($expectedShortfall * 100, 4),
+            'portfolio_beta' => $portfolioBeta !== null ? round($portfolioBeta, 4) : null,
+            'sharpe_ratio' => round($sharpe, 4),
+            'sortino_ratio' => round($sortino, 4),
+            'max_drawdown' => round($maxDrawdown, 4),
+            'volatility' => round($volatility * 100, 4),
+            'concentration_index' => round($concentration, 4),
+        ];
+    }
+
+    /**
+     * Calculate Herfindahl-Hirschman Index for concentration.
+     *
+     * @param array<string, float> $weights
+     * @return float
+     */
+    private function herfindahlIndex(array $weights): float
+    {
+        $sum = 0.0;
+        foreach ($weights as $w) {
+            $sum += $w * $w;
+        }
+        return $sum;
+    }
+
+    /**
+     * Calculate portfolio beta as weighted average of individual asset betas.
+     * Asset beta is computed as covariance(asset, equal-weight portfolio) / variance(portfolio).
+     *
+     * @param array<string, float> $weights
+     * @param array<string, array<int, float>> $positionReturns
+     * @param int $minReturns
+     * @return ?float
+     */
+    private function calculatePortfolioBeta(
+        array $weights,
+        array $positionReturns,
+        int $minReturns
+    ): ?float {
+        $portfolioReturns = [];
+        for ($i = 0; $i < $minReturns; $i++) {
+            $wr = 0.0;
+            foreach ($weights as $instId => $w) {
+                $returns = $positionReturns[$instId];
+                $idx = count($returns) - $minReturns + $i;
+                $wr += $w * $returns[$idx];
+            }
+            $portfolioReturns[] = $wr;
+        }
+
+        $marketMean = array_sum($portfolioReturns) / $minReturns;
+        $marketVar = 0.0;
+        foreach ($portfolioReturns as $r) {
+            $marketVar += pow($r - $marketMean, 2);
+        }
+        $marketVar /= $minReturns;
+
+        if ($marketVar == 0) {
+            return null;
+        }
+
+        $weightedBeta = 0.0;
+        foreach ($weights as $instId => $w) {
+            $returns = $positionReturns[$instId];
+            $assetSlice = [];
+            for ($i = 0; $i < $minReturns; $i++) {
+                $idx = count($returns) - $minReturns + $i;
+                $assetSlice[] = $returns[$idx];
+            }
+            $assetMean = array_sum($assetSlice) / $minReturns;
+            $cov = 0.0;
+            for ($i = 0; $i < $minReturns; $i++) {
+                $cov += ($assetSlice[$i] - $assetMean) * ($portfolioReturns[$i] - $marketMean);
+            }
+            $cov /= $minReturns;
+            $weightedBeta += $w * ($cov / $marketVar);
+        }
+
+        return $weightedBeta;
     }
 
     public function getRiskAssessment(string $id): ?array
@@ -381,20 +621,102 @@ final class RiskService extends BaseService implements RiskServiceInterface
     {
         $limits = $this->listRiskLimits($portfolioId);
         $violations = [];
+
+        $portfolioExposure = $this->getPortfolioExposure($portfolioId);
+        $orderValue = (float) ($proposedTrade['order_value']
+            ?? ($proposedTrade['quantity'] ?? 0) * ($proposedTrade['limit_price'] ?? 0));
+        $instrumentId = $proposedTrade['instrument_id'] ?? null;
+
         foreach ($limits as $limit) {
             if ($limit['status'] !== 'ACTIVE') {
                 continue;
             }
-            if (
-                isset($proposedTrade[$limit['limit_type']])
-                && (float) $proposedTrade[$limit['limit_type']] > (float) $limit['limit_value']
-            ) {
-                $violations[] = [
-                    'limit_type' => $limit['limit_type'],
-                    'limit_value' => $limit['limit_value'],
-                    'proposed_value' => $proposedTrade[$limit['limit_type']],
-                    'risk_limit_id' => $limit['risk_limit_id'],
-                ];
+
+            $limitType = $limit['limit_type'];
+            $limitValue = (float) $limit['limit_value'];
+
+            switch ($limitType) {
+                case 'MAX_SINGLE_POSITION':
+                    if ($instrumentId !== null) {
+                        $currentExposure = $portfolioExposure['by_instrument'][$instrumentId] ?? 0.0;
+                        $newExposure = $currentExposure + $orderValue;
+                        $pctOfPortfolio = $portfolioExposure['total'] > 0
+                            ? ($newExposure / $portfolioExposure['total']) * 100 : 0.0;
+                        if ($pctOfPortfolio > $limitValue) {
+                            $violations[] = [
+                                'limit_type' => $limitType,
+                                'limit_value' => $limitValue,
+                                'proposed_value' => round($pctOfPortfolio, 2),
+                                'current_exposure_pct' => round(
+                                    $portfolioExposure['total'] > 0
+                                        ? ($currentExposure / $portfolioExposure['total']) * 100
+                                        : 0.0, 2
+                                ),
+                                'risk_limit_id' => $limit['risk_limit_id'],
+                            ];
+                        }
+                    }
+                    break;
+
+                case 'MAX_PORTFOLIO_EXPOSURE':
+                    $newTotal = $portfolioExposure['total'] + $orderValue;
+                    if ($newTotal > $limitValue) {
+                        $violations[] = [
+                            'limit_type' => $limitType,
+                            'limit_value' => $limitValue,
+                            'proposed_value' => round($newTotal, 2),
+                            'current_exposure' => round($portfolioExposure['total'], 2),
+                            'risk_limit_id' => $limit['risk_limit_id'],
+                        ];
+                    }
+                    break;
+
+                case 'MAX_ORDER_VALUE':
+                    if ($orderValue > $limitValue) {
+                        $violations[] = [
+                            'limit_type' => $limitType,
+                            'limit_value' => $limitValue,
+                            'proposed_value' => round($orderValue, 2),
+                            'risk_limit_id' => $limit['risk_limit_id'],
+                        ];
+                    }
+                    break;
+
+                case 'MAX_SECTOR_EXPOSURE':
+                    if ($instrumentId !== null) {
+                        $sector = $this->getInstrumentSector($instrumentId);
+                        if ($sector !== null) {
+                            $currentSectorExposure
+                                = $portfolioExposure['by_sector'][$sector] ?? 0.0;
+                            $newSectorExposure = $currentSectorExposure + $orderValue;
+                            $pctOfPortfolio = $portfolioExposure['total'] > 0
+                                ? ($newSectorExposure / $portfolioExposure['total']) * 100 : 0.0;
+                            if ($pctOfPortfolio > $limitValue) {
+                                $violations[] = [
+                                    'limit_type' => $limitType,
+                                    'limit_value' => $limitValue,
+                                    'proposed_value' => round($pctOfPortfolio, 2),
+                                    'sector' => $sector,
+                                    'risk_limit_id' => $limit['risk_limit_id'],
+                                ];
+                            }
+                        }
+                    }
+                    break;
+
+                default:
+                    if (
+                        isset($proposedTrade[$limitType])
+                        && (float) $proposedTrade[$limitType] > $limitValue
+                    ) {
+                        $violations[] = [
+                            'limit_type' => $limitType,
+                            'limit_value' => $limitValue,
+                            'proposed_value' => $proposedTrade[$limitType],
+                            'risk_limit_id' => $limit['risk_limit_id'],
+                        ];
+                    }
+                    break;
             }
         }
         return [
@@ -402,6 +724,54 @@ final class RiskService extends BaseService implements RiskServiceInterface
             'violations' => $violations,
             'passed' => $violations === [],
         ];
+    }
+
+    /**
+     * Get portfolio exposure broken down by instrument and sector.
+     *
+     * @param string $portfolioId
+     * @return array{total: float, by_instrument: array<string, float>, by_sector: array<string, float>}
+     */
+    private function getPortfolioExposure(string $portfolioId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT p.instrument_id, p.quantity, p.average_cost, i.sector
+             FROM portfolio.position p
+             LEFT JOIN market.instrument i ON p.instrument_id = i.instrument_id
+             WHERE p.portfolio_id = :pid AND p.status = "OPEN"'
+        );
+        $stmt->execute([':pid' => $portfolioId]);
+        $rows = $stmt->fetchAll();
+
+        $total = 0.0;
+        $byInstrument = [];
+        $bySector = [];
+
+        foreach ($rows as $row) {
+            $value = (float) $row['quantity'] * (float) $row['average_cost'];
+            $instId = $row['instrument_id'];
+            $sector = $row['sector'] ?? 'UNKNOWN';
+
+            $total += $value;
+            $byInstrument[$instId] = ($byInstrument[$instId] ?? 0) + $value;
+            $bySector[$sector] = ($bySector[$sector] ?? 0) + $value;
+        }
+
+        return [
+            'total' => $total,
+            'by_instrument' => $byInstrument,
+            'by_sector' => $bySector,
+        ];
+    }
+
+    private function getInstrumentSector(string $instrumentId): ?string
+    {
+        $stmt = $this->db->prepare(
+            'SELECT sector FROM market.instrument WHERE instrument_id = :id'
+        );
+        $stmt->execute([':id' => $instrumentId]);
+        $row = $stmt->fetch();
+        return $row === false ? null : ($row['sector'] ?? null);
     }
 
     // ─── Stop Loss & Correlation ─────────────────────────────────────────

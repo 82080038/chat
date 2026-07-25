@@ -9,6 +9,9 @@ import Screening from "./pages/Screening";
 import Orders from "./pages/Orders";
 import RiskMonitor from "./pages/RiskMonitor";
 import Settings from "./pages/Settings";
+import Backtest from "./pages/Backtest";
+import PaperTrading from "./pages/PaperTrading";
+import AIEngine from "./pages/AIEngine";
 import { AuthProvider } from "./lib/auth";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
@@ -86,6 +89,36 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               <ProtectedRoute>
                 <Layout>
                   <Settings />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/backtest"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Backtest />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/paper-trading"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PaperTrading />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ai-engine"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AIEngine />
                 </Layout>
               </ProtectedRoute>
             }

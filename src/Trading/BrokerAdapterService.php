@@ -7,6 +7,7 @@ namespace Platform\Trading;
 use Platform\Core\BaseService;
 use Platform\Core\Exceptions\ApiException;
 use Platform\Trading\Adapters\MockBrokerAdapter;
+use Platform\Trading\Adapters\RestBrokerAdapter;
 
 final class BrokerAdapterService extends BaseService
 {
@@ -118,14 +119,44 @@ final class BrokerAdapterService extends BaseService
 
     private function createAdapter(array $broker): BrokerAdapterInterface
     {
-        $apiType = $broker['api_type'] ?? 'NONE';
+        $apiType = strtoupper($broker['api_type'] ?? 'NONE');
         $name = $broker['name'] ?? 'UNKNOWN';
 
         if ($apiType === 'NONE' || str_contains(strtoupper($name), 'MOCK')) {
             return new MockBrokerAdapter($name);
         }
 
-        return new MockBrokerAdapter($name);
+        if ($apiType === 'REST') {
+            $config = [];
+            if (!empty($broker['api_config'])) {
+                $decoded = json_decode($broker['api_config'], true);
+                if (is_array($decoded)) {
+                    $config = $decoded;
+                }
+            }
+            if (empty($config['base_url'])) {
+                throw new ApiException(
+                    422,
+                    'BROKER_CONFIG_ERROR',
+                    "Broker '{$name}' has api_type=REST but no base_url configured in api_config"
+                );
+            }
+            return new RestBrokerAdapter($name, $config);
+        }
+
+        if ($apiType === 'FIX') {
+            throw new ApiException(
+                501,
+                'FIX_NOT_IMPLEMENTED',
+                "FIX protocol adapter for broker '{$name}' is not yet implemented. Use api_type=REST or NONE."
+            );
+        }
+
+        throw new ApiException(
+            422,
+            'UNKNOWN_API_TYPE',
+            "Unknown api_type '{$apiType}' for broker '{$name}'. Supported: NONE, REST."
+        );
     }
 
     private function saveCredentials(

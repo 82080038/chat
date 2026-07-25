@@ -37,8 +37,22 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
   const instrBody = await instrRes.json();
   const instruments = instrBody.data || [];
   console.log(`✅ Found ${instruments.length} instruments`);
-  const bbcId = '7c0aa99f-876f-11f1-8fa9-b42e99811673';
+  // Find BBCA instrument dynamically from API response
+  const bbcaInstr = instruments.find((i: any) => i.ticker === 'BBCA' || i.listings?.some((l: any) => l.ticker === 'BBCA'));
+  const bbcId = bbcaInstr?.instrument_id || instruments[0]?.instrument_id || '';
   console.log(`   BBCA ID: ${bbcId}`);
+
+  // Fetch portfolios for portfolio ID
+  const pfRes = await page.request.get(`${BASE_URL}/portfolios?per_page=5`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  let portfolioId = '';
+  if (pfRes.ok()) {
+    const pfBody = await pfRes.json();
+    const portfolios = pfBody.data || [];
+    portfolioId = portfolios[0]?.portfolio_id || '';
+    console.log(`   Portfolio ID: ${portfolioId}`);
+  }
 
   // ─── 4. Technical Indicators ───────────────────────────────────────
   console.log('📉 Fetching technical indicators...');
@@ -164,7 +178,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 12. Portfolio Positions ───────────────────────────────────────
   console.log('💼 Fetching portfolio positions...');
-  const posRes = await page.request.get(`${BASE_URL}/portfolios/7c0fa29a-876f-11f1-8fa9-b42e99811673/positions`, {
+  const posRes = await page.request.get(`${BASE_URL}/portfolios/${portfolioId}/positions`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (posRes.ok()) {
@@ -177,7 +191,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 13. Liquidity Risk ────────────────────────────────────────────
   console.log('🌊 Assessing liquidity risk...');
-  const liqRiskRes = await page.request.get(`${BASE_URL}/portfolios/7c0fa29a-876f-11f1-8fa9-b42e99811673/liquidity-risk`, {
+  const liqRiskRes = await page.request.get(`${BASE_URL}/portfolios/${portfolioId}/liquidity-risk`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(liqRiskRes.ok()).toBeTruthy();
@@ -187,7 +201,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 14. Gap Risk ──────────────────────────────────────────────────
   console.log('📏 Assessing gap risk...');
-  const gapRiskRes = await page.request.get(`${BASE_URL}/portfolios/7c0fa29a-876f-11f1-8fa9-b42e99811673/gap-risk`, {
+  const gapRiskRes = await page.request.get(`${BASE_URL}/portfolios/${portfolioId}/gap-risk`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(gapRiskRes.ok()).toBeTruthy();
@@ -201,7 +215,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
   const dupRes = await page.request.post(`${BASE_URL}/compliance/duplicate-order`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     data: {
-      portfolio_id: '7c0fa29a-876f-11f1-8fa9-b42e99811673',
+      portfolio_id: portfolioId,
       instrument_id: bbcId,
       side: 'BUY',
       quantity: 500,
@@ -216,7 +230,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
   const errRes = await page.request.post(`${BASE_URL}/compliance/erroneous-order`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     data: {
-      portfolio_id: '7c0fa29a-876f-11f1-8fa9-b42e99811673',
+      portfolio_id: portfolioId,
       instrument_id: bbcId,
       side: 'BUY',
       quantity: 500,
@@ -231,7 +245,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
   const capRes = await page.request.post(`${BASE_URL}/compliance/capital-threshold`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     data: {
-      portfolio_id: '7c0fa29a-876f-11f1-8fa9-b42e99811673',
+      portfolio_id: portfolioId,
       order_value: 5000000,
     },
   });
@@ -290,7 +304,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
   // Take screenshots
   await page.goto(`${FRONTEND_URL}/#/instruments/${bbcId}`);
   await page.waitForTimeout(2000);
-  await page.screenshot({ path: '/opt/lampp/htdocs/chat/tests/screenshots/stock-detail.png', fullPage: true });
+  await page.screenshot({ path: 'tests/screenshots/stock-detail.png', fullPage: true });
   console.log('📸 Screenshot saved: stock-detail.png');
 
   // ─── Summary ───────────────────────────────────────────────────────

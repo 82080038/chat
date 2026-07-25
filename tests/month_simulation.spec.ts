@@ -5,22 +5,10 @@ const FRONTEND_URL = 'http://localhost:8080/dashboard';
 const DAY_DURATION_MS = 5000; // 1 day = 5 seconds
 const TOTAL_DAYS = 22; // 22 trading days in 1 month
 
-const BBCA = '7c0aa99f-876f-11f1-8fa9-b42e99811673';
-const PF_GROWTH = '7c0fa29a-876f-11f1-8fa9-b42e99811673';
-
-// Instruments for rotation
-const INSTRUMENTS = [
-  { id: '7c0aa99f-876f-11f1-8fa9-b42e99811673', ticker: 'BBCA' },
-  { id: '7c0aac8f-876f-11f1-8fa9-b42e99811673', ticker: 'BBRI' },
-  { id: '7c0aad15-876f-11f1-8fa9-b42e99811673', ticker: 'BMRI' },
-  { id: '7c0aad72-876f-11f1-8fa9-b42e99811673', ticker: 'TLKM' },
-  { id: '7c0aadcb-876f-11f1-8fa9-b42e99811673', ticker: 'ASII' },
-  { id: '7c0aae22-876f-11f1-8fa9-b42e99811673', ticker: 'GOTO' },
-  { id: '7c0aae72-876f-11f1-8fa9-b42e99811673', ticker: 'UNVR' },
-  { id: '7c0aaec0-876f-11f1-8fa9-b42e99811673', ticker: 'ICBP' },
-  { id: '7c0aaf11-876f-11f1-8fa9-b42e99811673', ticker: 'ADRO' },
-  { id: '7c0aaf5e-876f-11f1-8fa9-b42e99811673', ticker: 'ANTM' },
-];
+// These will be fetched dynamically from the API after login
+let BBCA = '';
+let PF_GROWTH = '';
+let INSTRUMENTS: { id: string; ticker: string }[] = [];
 
 test('1-Month Market Simulation (22 days × 5 sec/day) - Headed Browser', async ({ page }) => {
   test.setTimeout(DAY_DURATION_MS * TOTAL_DAYS + 30000);
@@ -50,6 +38,21 @@ test('1-Month Market Simulation (22 days × 5 sec/day) - Headed Browser', async 
   const baselineRes = await page.request.get(`${BASE_URL}/instruments?per_page=20`, { headers });
   const baseline = (await baselineRes.json()).data || [];
   console.log(`   ${baseline.length} active instruments`);
+
+  // Build INSTRUMENTS list dynamically from API response
+  INSTRUMENTS = baseline.map((i: any) => ({
+    id: i.instrument_id,
+    ticker: i.ticker || i.listings?.[0]?.ticker || 'UNKNOWN',
+  }));
+  const bbcaInstr = baseline.find((i: any) => i.ticker === 'BBCA' || i.listings?.some((l: any) => l.ticker === 'BBCA'));
+  BBCA = bbcaInstr?.instrument_id || baseline[0]?.instrument_id || '';
+
+  // Fetch portfolios
+  const pfRes = await page.request.get(`${BASE_URL}/portfolios?per_page=5`, { headers });
+  if (pfRes.ok()) {
+    const portfolios = (await pfRes.json()).data || [];
+    PF_GROWTH = portfolios[0]?.portfolio_id || '';
+  }
 
   // ─── Day-by-Day Simulation Loop ─────────────────────────────────────
   for (let day = TOTAL_DAYS; day >= 1; day--) {
@@ -116,7 +119,7 @@ test('1-Month Market Simulation (22 days × 5 sec/day) - Headed Browser', async 
 
     // 7. Take screenshot every 5 days
     if (day % 5 === 0 || day === 1) {
-      const screenshotPath = `/opt/lampp/htdocs/chat/tests/screenshots/sim-day-${TOTAL_DAYS - day + 1}.png`;
+      const screenshotPath = `tests/screenshots/sim-day-${TOTAL_DAYS - day + 1}.png`;
       await page.screenshot({ path: screenshotPath, fullPage: true });
       console.log(`   📸 Screenshot: sim-day-${TOTAL_DAYS - day + 1}.png`);
     }
@@ -176,7 +179,7 @@ test('1-Month Market Simulation (22 days × 5 sec/day) - Headed Browser', async 
   // Final screenshot
   await page.goto(`${FRONTEND_URL}/#/instruments/${BBCA}`);
   await page.waitForTimeout(2000);
-  await page.screenshot({ path: '/opt/lampp/htdocs/chat/tests/screenshots/sim-final.png', fullPage: true });
+  await page.screenshot({ path: 'tests/screenshots/sim-final.png', fullPage: true });
   console.log(`\n📸 Final screenshot saved: sim-final.png`);
 
   console.log('\n==========================================');

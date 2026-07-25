@@ -746,3 +746,170 @@ export const AnalyticsAPI = {
   calculateMinimumCapital: (portfolioId: string, instrumentId: string, quantity: number, price: number, side = 'BUY') =>
     api.post<MinimumCapitalResult>('/compliance/minimum-capital', { portfolio_id: portfolioId, instrument_id: instrumentId, quantity, price, side }),
 };
+
+// ─── Backtesting Types & API ───────────────────────────────────────────
+
+export type BacktestRun = {
+  run_id: string;
+  strategy_name: string;
+  instrument_id: string | null;
+  portfolio_id: string | null;
+  start_date: string;
+  end_date: string;
+  initial_capital: string;
+  final_capital: string | null;
+  status: string;
+  parameters: Record<string, unknown> | null;
+  created_at: string;
+};
+
+export type BacktestTrade = {
+  trade_id: string;
+  run_id: string;
+  instrument_id: string;
+  side: string;
+  quantity: number;
+  entry_price: number;
+  exit_price: number;
+  entry_date: string;
+  exit_date: string;
+  pnl: number;
+  pnl_pct: number;
+};
+
+export type BacktestMetrics = {
+  metrics_id: string;
+  run_id: string;
+  total_return: number;
+  annualized_return: number;
+  sharpe_ratio: number;
+  sortino_ratio: number;
+  max_drawdown: number;
+  win_rate: number;
+  profit_factor: number;
+  total_trades: number;
+  winning_trades: number;
+  losing_trades: number;
+  avg_win: number;
+  avg_loss: number;
+};
+
+export const BacktestAPI = {
+  createRun: (data: {
+    strategy_name: string;
+    start_date: string;
+    end_date: string;
+    initial_capital: number;
+    instrument_id?: string;
+    portfolio_id?: string;
+    parameters?: Record<string, unknown>;
+  }) => api.post<BacktestRun>('/backtests', data),
+
+  listRuns: (page = 1, perPage = 20) =>
+    api.getPaginated<BacktestRun>(`/backtests?page=${page}&per_page=${perPage}`),
+
+  getRun: (runId: string) =>
+    api.get<BacktestRun>(`/backtests/${runId}`),
+
+  executeRun: (runId: string, priceData: Array<{ date: string; close: number; high: number; low: number; open: number; volume?: number }>) =>
+    api.post<{ run_id: string; status: string; final_capital: number; total_trades: number; metrics: BacktestMetrics }>(
+      `/backtests/${runId}/execute`,
+      { price_data: priceData }
+    ),
+
+  getRunTrades: (runId: string) =>
+    api.get<BacktestTrade[]>(`/backtests/${runId}/trades`),
+
+  getRunMetrics: (runId: string) =>
+    api.get<BacktestMetrics>(`/backtests/${runId}/metrics`),
+};
+
+// ─── Paper Trading Types & API ─────────────────────────────────────────
+
+export type PaperOrder = {
+  order_id: string;
+  portfolio_id: string;
+  instrument_id: string;
+  side: string;
+  order_type: string;
+  quantity: number;
+  price: number | null;
+  status: string;
+  filled_quantity: number;
+  avg_fill_price: number | null;
+  created_at: string;
+};
+
+export type PaperPosition = {
+  position_id: string;
+  portfolio_id: string;
+  instrument_id: string;
+  quantity: number;
+  average_cost: number;
+  market_price: number;
+  market_value: number;
+  unrealized_pnl: number;
+  unrealized_pnl_pct: number;
+  status: string;
+};
+
+export const PaperTradingAPI = {
+  createAccount: (data: { portfolio_id: string; initial_capital: number; base_currency?: string }) =>
+    api.post<PaperOrder>('/paper/accounts', data),
+
+  getAccount: (accountId: string) =>
+    api.get<PaperOrder>(`/paper/accounts/${accountId}`),
+
+  placeOrder: (accountId: string, data: {
+    instrument_id: string;
+    side: string;
+    order_type: string;
+    quantity: number;
+    price?: number;
+  }) => api.post<PaperOrder>(`/paper/accounts/${accountId}/orders`, data),
+
+  listOrders: (accountId: string, page = 1, perPage = 20) =>
+    api.getPaginated<PaperOrder>(`/paper/accounts/${accountId}/orders?page=${page}&per_page=${perPage}`),
+
+  cancelOrder: (accountId: string, orderId: string) =>
+    api.del<PaperOrder>(`/paper/accounts/${accountId}/orders/${orderId}`),
+
+  listPositions: (accountId: string) =>
+    api.get<PaperPosition[]>(`/paper/accounts/${accountId}/positions`),
+
+  getBalance: (accountId: string) =>
+    api.get<{ portfolio_id: string; cash_balance: number; available_balance: number; total_value: number }>(`/paper/accounts/${accountId}/summary`),
+};
+
+// ─── AI Engine Types & API ─────────────────────────────────────────────
+
+export const AIAPI = {
+  analyzeSentiment: (data: { text: string; instrument_id?: string; source_type?: string }) =>
+    api.post<AIAnalysis>('/ai/sentiment', data),
+
+  recognizePattern: (data: { instrument_id: string; price_data: Array<{ date: string; open: number; high: number; low: number; close: number }> }) =>
+    api.post<AIAnalysis>('/ai/pattern', data),
+
+  detectAnomaly: (data: { instrument_id: string; values: number[] }) =>
+    api.post<AIAnalysis>('/ai/anomaly', data),
+
+  listAnalyses: (page = 1, perPage = 20, filters?: { analysis_type?: string; instrument_id?: string }) => {
+    let path = `/ai/analyses?page=${page}&per_page=${perPage}`;
+    if (filters?.analysis_type) path += `&analysis_type=${filters.analysis_type}`;
+    if (filters?.instrument_id) path += `&instrument_id=${filters.instrument_id}`;
+    return api.getPaginated<AIAnalysis>(path);
+  },
+
+  getAnalysis: (analysisId: string) =>
+    api.get<AIAnalysis>(`/ai/analyses/${analysisId}`),
+};
+
+// ─── Data Ingestion Fetch API ──────────────────────────────────────────
+
+export const DataIngestionAPI = {
+  fetchFromExternal: (data: { provider: string; symbol: string; from_date?: string; to_date?: string }) =>
+    api.post<{ provider: string; symbol: string; instrument_id: string; records_ingested: number; records_skipped: number; date_range: { from: string; to: string } }>('/ingestion/fetch', data),
+
+  seedMarketData: (data?: { days?: number; delay?: number; symbol?: string }) =>
+    api.post<{ total_records_ingested: number; symbols_processed: number; errors: number; details: Array<{ symbol: string; name: string; instrument_id?: string; records_ingested?: number; status: string; error?: string }> }>('/ingestion/seed-market-data', data ?? {}),
+};

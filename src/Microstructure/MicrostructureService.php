@@ -324,11 +324,24 @@ final class MicrostructureService extends BaseService implements MicrostructureS
         $avgDailyVolume = $avgVol !== false && $avgVol !== null
             ? (float) $avgVol : 0.0;
 
-        // Estimated liquidation days (assume 10% of daily volume can be liquidated)
+        // Estimated liquidation days based on 10% of daily volume
         $estLiquidationDays = null;
         if ($avgDailyVolume > 0) {
-            // Get position size if available
-            $estLiquidationDays = 0.0;
+            $stmt2 = $this->db->prepare(
+                'SELECT quantity FROM portfolio.position
+                 WHERE instrument_id = :id AND status = "OPEN"
+                 ORDER BY quantity DESC LIMIT 1'
+            );
+            $stmt2->execute([':id' => $instrumentId]);
+            $posRow = $stmt2->fetch();
+
+            if ($posRow !== false) {
+                $positionSize = (float) $posRow['quantity'];
+                $maxDailySellable = $avgDailyVolume * 0.10;
+                if ($maxDailySellable > 0) {
+                    $estLiquidationDays = round($positionSize / $maxDailySellable, 2);
+                }
+            }
         }
 
         // Liquidity score (0-100)

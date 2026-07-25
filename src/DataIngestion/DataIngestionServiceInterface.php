@@ -17,4 +17,6 @@ interface DataIngestionServiceInterface
     public function getIngestionStatus(): array;
 
     public function runDataQualityChecks(string $instrumentId): array;
+
+    public function fetchFromExternal(string $provider, string $symbol, ?string $fromDate, ?string $toDate): array;
 }

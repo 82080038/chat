@@ -27,9 +27,32 @@ final class MockPdoStatement extends PDOStatement
         $this->sql = $sql;
     }
 
+    /** @var array<string, mixed> */
+    private array $boundValues = [];
+
+    public function bindValue(
+        string|int $parameter,
+        mixed $value,
+        int $type = PDO::PARAM_STR
+    ): bool {
+        $this->boundValues[(string) $parameter] = $value;
+        return true;
+    }
+
+    public function bindParam(
+        string|int $param,
+        mixed &$var,
+        int $type = PDO::PARAM_STR,
+        int $maxLength = 0,
+        mixed $driverOptions = null
+    ): bool {
+        $this->boundValues[(string) $param] = &$var;
+        return true;
+    }
+
     public function execute(?array $params = null): bool
     {
-        $this->params = $params ?? [];
+        $this->params = array_merge($this->boundValues, $params ?? []);
         $sqlLower = strtolower(trim($this->sql));
 
         if (str_starts_with($sqlLower, 'insert')) {
