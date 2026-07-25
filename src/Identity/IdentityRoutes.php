@@ -14,9 +14,9 @@ final class IdentityRoutes
 {
     public static function register(Router $router): void
     {
-        $router->post('/auth/setup', [self::class, 'setup']);
-        $router->post('/auth/login', [self::class, 'login']);
-        $router->post('/auth/refresh', [self::class, 'refresh']);
+        $router->post('/auth/setup', [self::class, 'setup'], ['rate-limit-auth']);
+        $router->post('/auth/login', [self::class, 'login'], ['rate-limit-auth']);
+        $router->post('/auth/refresh', [self::class, 'refresh'], ['rate-limit-auth']);
         $router->post('/auth/logout', [self::class, 'logout'], ['bearer']);
         $router->get('/auth/me', [self::class, 'me'], ['bearer']);
         $router->post('/auth/change-password', [self::class, 'changePassword'], ['bearer']);
@@ -40,7 +40,9 @@ final class IdentityRoutes
             (string) $request->getBody('password', ''),
             self::context($request)
         );
-        return Response::ok($tokens);
+        $response = Response::ok($tokens);
+        self::setAuthCookies($response, $tokens);
+        return $response;
     }
 
     public static function refresh(Request $request): Response
@@ -49,7 +51,9 @@ final class IdentityRoutes
             (string) $request->getBody('refresh_token', ''),
             self::context($request)
         );
-        return Response::ok($tokens);
+        $response = Response::ok($tokens);
+        self::setAuthCookies($response, $tokens);
+        return $response;
     }
 
     public static function logout(Request $request): Response
@@ -59,7 +63,9 @@ final class IdentityRoutes
             throw new ApiException(401, 'INVALID_TOKEN', 'Owner session is missing');
         }
         self::service()->logout($jti, self::context($request));
-        return Response::noContent();
+        $response = Response::noContent();
+        self::clearAuthCookies($response);
+        return $response;
     }
 
     public static function me(Request $request): Response
@@ -102,6 +108,28 @@ final class IdentityRoutes
             throw new ApiException(503, 'IDENTITY_UNAVAILABLE', 'Identity service is unavailable');
         }
         return $service;
+    }
+
+    private static function setAuthCookies(Response $response, array $tokens): void
+    {
+        $secure = getenv('APP_ENV') !== 'development';
+        $sameSite = $secure ? 'None' : 'Lax';
+        $response->addHeader(
+            'Set-Cookie',
+            'access_token=' . ($tokens['token'] ?? '') . '; HttpOnly; Path=/; SameSite=' . $sameSite . ($secure ? '; Secure' : '') . '; Max-Age=' . ($tokens['expires_in'] ?? 3600)
+        );
+        $response->addHeader(
+            'Set-Cookie',
+            'refresh_token=' . ($tokens['refresh_token'] ?? '') . '; HttpOnly; Path=/auth; SameSite=' . $sameSite . ($secure ? '; Secure' : '') . '; Max-Age=604800'
+        );
+    }
+
+    private static function clearAuthCookies(Response $response): void
+    {
+        $secure = getenv('APP_ENV') !== 'development';
+        $sameSite = $secure ? 'None' : 'Lax';
+        $response->addHeader('Set-Cookie', 'access_token=; HttpOnly; Path=/; SameSite=' . $sameSite . ($secure ? '; Secure' : '') . '; Max-Age=0');
+        $response->addHeader('Set-Cookie', 'refresh_token=; HttpOnly; Path=/auth; SameSite=' . $sameSite . ($secure ? '; Secure' : '') . '; Max-Age=0');
     }
 
     private static function requiredOwnerId(Request $request): string

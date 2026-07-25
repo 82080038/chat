@@ -45,13 +45,13 @@ case "${1:-up}" in
       if [[ "$(basename "$f")" == "012_seed_data.sql" ]]; then
         continue
       fi
-      if [[ "$(basename "$f")" == "015_seed_sample_data.sql" ]]; then
+      if [[ "$(basename "$f")" == "026_seed_sample_data.sql" ]]; then
         continue
       fi
-      if [[ "$(basename "$f")" == "016_seed_full_simulation_data.sql" ]]; then
+      if [[ "$(basename "$f")" == "027_seed_full_simulation_data.sql" ]]; then
         continue
       fi
-      if [[ "$(basename "$f")" == "017_seed_month_simulation.sql" ]]; then
+      if [[ "$(basename "$f")" == "028_seed_month_simulation.sql" ]]; then
         continue
       fi
       if [[ "$(basename "$f")" == "021_seed_simulation_data.sql" ]]; then
@@ -105,13 +105,13 @@ case "${1:-up}" in
       if [[ "$(basename "$f")" == "012_seed_data.sql" ]]; then
         continue
       fi
-      if [[ "$(basename "$f")" == "015_seed_sample_data.sql" ]]; then
+      if [[ "$(basename "$f")" == "026_seed_sample_data.sql" ]]; then
         continue
       fi
-      if [[ "$(basename "$f")" == "016_seed_full_simulation_data.sql" ]]; then
+      if [[ "$(basename "$f")" == "027_seed_full_simulation_data.sql" ]]; then
         continue
       fi
-      if [[ "$(basename "$f")" == "017_seed_month_simulation.sql" ]]; then
+      if [[ "$(basename "$f")" == "028_seed_month_simulation.sql" ]]; then
         continue
       fi
       if [[ "$(basename "$f")" == "021_seed_simulation_data.sql" ]]; then

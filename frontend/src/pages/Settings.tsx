@@ -26,7 +26,7 @@ export default function Settings() {
     setLoading(true);
     setError("");
     try {
-      const { data } = await api.getPaginated<ConfigEntry>("/config?per_page=50");
+      const { data } = await api.getPaginated<ConfigEntry>("/configurations?per_page=50");
       setConfigs(data || []);
     } catch {
       setConfigs([]);

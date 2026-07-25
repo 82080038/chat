@@ -4,6 +4,41 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+// ─── Security Headers ─────────────────────────────────────────────────
+// Load .env early for environment checks
+if (file_exists(__DIR__ . '/../.env')) {
+    $dotenv = \Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+    $dotenv->safeLoad();
+}
+
+// HTTPS enforcement (production only)
+$appEnv = getenv('APP_ENV') ?: ($_ENV['APP_ENV'] ?? $_SERVER['APP_ENV'] ?? 'development');
+if (
+    $appEnv !== 'development'
+    && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] !== 'on')
+    && (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) ? $_SERVER['HTTP_X_FORWARDED_PROTO'] !== 'https' : true)
+) {
+    header('Location: https://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ($_SERVER['REQUEST_URI'] ?? ''));
+    http_response_code(301);
+    exit;
+}
+
+// CORS headers
+$allowedOrigins = getenv('CORS_ALLOWED_ORIGINS') ?: '*';
+header('Access-Control-Allow-Origin: ' . $allowedOrigins);
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Correlation-ID');
+header('Access-Control-Max-Age: 86400');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('X-XSS-Protection: 1; mode=block');
+
+// Handle preflight OPTIONS requests
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 use Platform\Alert\AlertRoutes;
 use Platform\Alert\AlertService;
 use Platform\Analytics\AnalyticsRoutes;
@@ -74,6 +109,8 @@ $router = new Router();
 // Register middleware
 $router->addMiddleware('bearer', [AuthMiddleware::class, 'bearer']);
 $router->addMiddleware('public', [AuthMiddleware::class, 'public']);
+$router->addMiddleware('rate-limit', [\Platform\Core\Middleware\RateLimitMiddleware::class, 'api']);
+$router->addMiddleware('rate-limit-auth', [\Platform\Core\Middleware\RateLimitMiddleware::class, 'auth']);
 
 // Health endpoints
 $router->get('/health', function (Request $request) use ($app): Response {

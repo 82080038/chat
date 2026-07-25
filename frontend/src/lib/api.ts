@@ -33,6 +33,7 @@ async function request<T>(
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
+    credentials: "include",
   });
 
   const text = await res.text();
@@ -57,6 +58,7 @@ export const api = {
   getPaginated: async <T>(path: string): Promise<{ data: T[]; meta?: PaginationMeta }> => {
     const res = await fetch(`${API_BASE}${path}`, {
       headers: await buildHeaders(),
+      credentials: "include",
     });
     const text = await res.text();
     const json = text ? JSON.parse(text) : null;

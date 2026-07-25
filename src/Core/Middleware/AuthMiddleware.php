@@ -14,7 +14,15 @@ final class AuthMiddleware
     public static function bearer(Request $request): ?Response
     {
         $authHeader = $request->getHeader('authorization');
-        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
+        $token = null;
+
+        if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+            $token = substr($authHeader, 7);
+        } elseif (isset($_COOKIE['access_token']) && $_COOKIE['access_token'] !== '') {
+            $token = $_COOKIE['access_token'];
+        }
+
+        if ($token === null) {
             return Response::error(401, 'UNAUTHORIZED', 'Missing or invalid Authorization header');
         }
 
@@ -23,7 +31,7 @@ final class AuthMiddleware
             return Response::error(503, 'IDENTITY_UNAVAILABLE', 'Identity service is unavailable');
         }
 
-        $claims = $identity->verifyAccessToken(substr($authHeader, 7));
+        $claims = $identity->verifyAccessToken($token);
         $request->setOwnerId((string) $claims['owner_id']);
         $request->setAccessJti((string) $claims['jti']);
         return null;

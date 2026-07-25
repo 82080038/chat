@@ -22,3 +22,11 @@ frontend/vite.config.js
 /test-results/
 /tests/screenshots/
 /playwright/.cache/
+
+# Composer installer & phar (not needed in repo)
+composer-setup.php
+composer.phar
+
+# Built frontend (devs should run `npm run build` to generate)
+/public/dashboard/assets/*.js
+/public/dashboard/assets/*.css

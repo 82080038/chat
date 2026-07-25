@@ -31,16 +31,29 @@ export default function RiskMonitor() {
     setLoading(true);
     setError("");
     try {
-      const [pfRes, asRes, evRes, portRes] = await Promise.allSettled([
+      const [pfRes, evRes, portRes] = await Promise.allSettled([
         api.getPaginated<RiskProfile>("/risk-profiles?per_page=20"),
-        api.getPaginated<RiskAssessment>("/risk-assessments?per_page=20"),
         api.getPaginated<RiskEvent>("/risk-events?per_page=20"),
         api.get<Portfolio[]>("/portfolios?per_page=50"),
       ]);
       if (pfRes.status === "fulfilled") setProfiles(pfRes.value.data || []);
-      if (asRes.status === "fulfilled") setAssessments(asRes.value.data || []);
       if (evRes.status === "fulfilled") setEvents(evRes.value.data || []);
-      if (portRes.status === "fulfilled") setPortfolios(portRes.value || []);
+      if (portRes.status === "fulfilled") {
+        const portfoliosData = portRes.value || [];
+        setPortfolios(portfoliosData);
+        const assessmentResults = await Promise.allSettled(
+          portfoliosData.map((pf) =>
+            api.getPaginated<RiskAssessment>(`/portfolios/${pf.portfolio_id}/risk-assessments?per_page=20`)
+          )
+        );
+        const allAssessments: RiskAssessment[] = [];
+        for (const res of assessmentResults) {
+          if (res.status === "fulfilled") {
+            allAssessments.push(...(res.value.data || []));
+          }
+        }
+        setAssessments(allAssessments);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load risk data";
       setError(msg);

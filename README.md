@@ -14,12 +14,12 @@
 | Cache | Redis 7+ (fail-open if unavailable) |
 | Messaging | RabbitMQ (optional) |
 | Storage | S3-compatible Object Storage (optional) |
-| Testing | PHPUnit (backend) + Playwright (E2E) |
+| Testing | PHPUnit (backend, 159 tests) + Playwright (E2E, 9 tests) |
 | Deployment | Docker + Kubernetes + Prometheus/Grafana |
 
 ## Prerequisites
 
-- **PHP 8.2+** with extensions: `pdo`, `pdo_mysql`, `json`, `mbstring`, `openssl`
+- **PHP 8.2+** with extensions: `pdo`, `pdo_mysql`, `json`, `mbstring`, `openssl` (note: `ext-sockets` is optional, used by RabbitMQ)
 - **MySQL 8+** or **MariaDB 10.6+** (XAMPP works)
 - **Redis** (optional — app fails open if unavailable)
 - **Composer 2+**
@@ -122,11 +122,11 @@ php -S localhost:8080 -t public
 ## Running Tests
 
 ```bash
-# Backend unit tests (150 tests, 279 assertions)
+# Backend unit tests (159 tests, 305 assertions)
 vendor/bin/phpunit
 
-# E2E Playwright tests (7 tests)
-npx playwright test
+# E2E Playwright tests (9 tests, headed mode)
+npx playwright test --headed
 
 # Code style check
 composer sniff
@@ -150,7 +150,7 @@ composer sniff
 │       ├── index.html
 │       └── assets/
 │
-├── src/                          # PHP backend (64 files, 17 services)
+├── src/                          # PHP backend (70+ files, 18 services)
 │   ├── Core/                     # Framework core
 │   │   ├── Application.php       # Service container
 │   │   ├── BaseService.php       # Base class (uuid, now, paginate)
@@ -160,7 +160,10 @@ composer sniff
 │   │   ├── Http/Response.php
 │   │   ├── Cache/RedisCacheStore.php   # Fail-open cache
 │   │   ├── Exceptions/ApiException.php
-│   │   └── Middleware/AuthMiddleware.php  # JWT verification
+│   │     ├── Middleware/AuthMiddleware.php  # JWT verification (Bearer + cookie)
+│   │     ├── Middleware/RateLimitMiddleware.php  # Rate limiting (Redis-based)
+│   │   ├── Analytics/PythonBridge.php  # Python subprocess bridge (fail-safe)
+│   │   ├── EventBus/EventBus.php  # RabbitMQ event bus (fail-safe)
 │   ├── Identity/                 # Owner auth, JWT, sessions, setup
 │   ├── Config/                   # Versioned config, encryption, feature flags
 │   ├── MarketMaster/             # Exchanges, instruments, listings, issuers
@@ -193,14 +196,18 @@ composer sniff
 │           └── auth.tsx          # Auth context (login, logout, JWT storage)
 │
 ├── database/
-│   ├── migrate.sh                # Migration runner (up/down/seed)
-│   └── migrations/               # 20 SQL files (001-020)
+│   ├── migrate.sh                # Migration runner (up/down/seed/seed-sim/reset)
+│   └── migrations/               # 28 SQL files (001-028)
 │       ├── 001_create_database_and_schemas.sql
 │       ├── 002_identity_schema.sql
 │       ├── ...
 │       ├── 011_postgresql_timescaledb_schema.sql  # PG only, skipped on MySQL
 │       ├── 012_seed_data.sql
-│       └── 020_ai_engine_schema.sql
+│       ├── ...
+│       ├── 025_market_microstructure_schema.sql
+│       ├── 026_seed_sample_data.sql
+│       ├── 027_seed_full_simulation_data.sql
+│       └── 028_seed_month_simulation.sql
 │
 ├── tests/                        # PHPUnit + Playwright
 │   ├── Identity/                 # Service unit tests
@@ -209,7 +216,9 @@ composer sniff
 │   ├── ...
 │   ├── PaperTrading/
 │   ├── AIEngine/
-│   ├── e2e-simulation.spec.ts    # Playwright E2E tests
+│   ├── e2e-simulation.spec.ts    # Playwright E2E (7 tests)
+│   ├── playwright_simulation.spec.ts  # Playwright full simulation (1 test, 24 endpoints)
+│   ├── month_simulation.spec.ts  # Playwright 22-day simulation (1 test)
 │   └── screenshots/              # E2E test screenshots
 │
 ├── docker/                       # Docker configs
@@ -245,39 +254,48 @@ composer sniff
 │
 ├── MASTER_BLUEPRINT.md           # Complete system blueprint (501 sections)
 ├── DEVELOPMENT_ROADMAP.md        # Development progress tracker
-└── PROMPTING_CYCLE.md            # Development cycle history
+├── PROMPTING_CYCLE.md            # Development cycle history
+│
+├── scripts/
+│   └── analytics_bridge.py       # Python analytics engine (indicators, signals, forecast, sentiment, backtest)
 ```
 
-## Services (17 Registered)
+## Services (18 Registered)
 
 | # | Service | Endpoints | Description |
 |---|---------|-----------|-------------|
-| 1 | Identity | /auth/* | Owner setup, login, JWT, refresh, logout |
-| 2 | Config | /config/* | Versioned config, feature flags, encryption |
+| 1 | Identity | /auth/* | Owner setup, login, JWT, refresh, logout, kill switch |
+| 2 | Config | /configurations, /feature-flags, /system-parameters | Versioned config, feature flags, encryption |
 | 3 | MarketMaster | /instruments, /exchanges, /issuers, /listings | Market data master |
 | 4 | Fundamental | /financial-statements, /ratios, /estimates | Financial data |
-| 5 | Analytics | /signals, /forecasts, /ohlcv | Trading signals & forecasts |
-| 6 | Risk | /risk-profiles, /risk-limits, /assessments | Risk management |
+| 5 | Analytics | /signals, /forecasts, /ohlcv, /indicators, /screening, /composite-scores | Trading signals, indicators, screening, composite decision engine |
+| 6 | Risk | /risk-profiles, /risk-limits, /risk-assessments, /risk-events | Risk management, stop loss, correlation, liquidity/gap risk |
 | 7 | Portfolio | /portfolios, /positions, /cash, /transactions | Portfolio management |
-| 8 | Trading | /brokers, /orders, /order-intents | Order management |
+| 8 | Trading | /brokers, /orders, /order-intents, /decisions | Order management, order modify (PATCH) |
 | 9 | Settlement | /settlements, /reconciliations | Trade settlement |
 | 10 | Governance | /policies, /audit-logs | Governance & compliance |
 | 11 | Alert | /alerts | Price/signal/risk alerts |
 | 12 | Backtesting | /backtests | Strategy backtesting |
 | 13 | PaperTrading | /paper/* | Simulated trading |
 | 14 | AIEngine | /ai/* | Sentiment, pattern, anomaly detection |
-| 15 | DataIngestion | /ingestion/* | Data source management |
+| 15 | DataIngestion | /ingestion/* | Data source management, data quality |
 | 16 | Valuation | /valuations | DCF & relative valuation |
-| 17 | BrokerAdapter | /brokers/api-* | Broker API integration |
+| 17 | BrokerAdapter | /brokers/api-* | Broker API integration (mock adapter) |
+| 18 | Microstructure | /microstructure/* | Bid/ask spread, order book, market impact, liquidity |
 
 ## Key Design Decisions
 
 - **No framework**: Pure PHP with PSR-4 autoloading, custom Router, DI container
 - **API envelope**: All responses wrapped in `{ data: ... }` or `{ error: { code, message } }`
-- **JWT**: HS256 with `owner_id` + `jti`, stored in `owner_session` table (revocable)
+- **JWT**: HS256 with `owner_id` + `jti`, stored in `owner_session` table (revocable). Tokens stored in HttpOnly cookies (with Bearer header fallback for backward compatibility)
 - **PDO named params**: MariaDB doesn't support reusing named params in prepared statements — all params must be unique (e.g., `:now1`, `:now2`)
 - **Redis fail-open**: If Redis is unavailable, app continues without cache
 - **Frontend SPA**: Served from `/dashboard/`, API from root `/`
+- **CORS**: Configurable via `CORS_ALLOWED_ORIGINS` env var, defaults to `*`
+- **Rate limiting**: 60 req/min for general API, 5 req/min for auth endpoints (via Redis, fail-open)
+- **HTTPS enforcement**: Automatic redirect to HTTPS in production (skipped in development)
+- **Security headers**: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`
+- **Python analytics bridge**: Optional Python subprocess for ML/AI computations (SMA, RSI, MACD, Bollinger, ATR, sentiment, backtesting). Fail-safe PHP fallback if Python unavailable
 
 ## Development Workflow
 
@@ -312,6 +330,9 @@ cd frontend && npm run build
 | Auth 401 on all requests | JWT expired — re-login via `/auth/login` |
 | Migration 011 fails | It's PostgreSQL-only, skip it on MySQL |
 | Redis extension missing | App fails open — not required for development |
+| `ext-sockets` missing | Run `composer install --ignore-platform-req=ext-sockets` |
+| Rate limit 429 | Redis-based, wait 60 seconds or check `rate_limit:*` keys in Redis |
+| HTTPS redirect loop | Ensure `APP_ENV=development` in `.env` to skip HTTPS enforcement |
 
 ## License
 
