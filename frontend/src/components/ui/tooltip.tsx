@@ -67,6 +67,8 @@ const GLOSSARY: Record<string, string> = {
   Liquidity: "Kemudahan menjual aset tanpa memengaruhi harga secara signifikan",
   Yield: "Tingkat imbal hasil dari investasi (misal: yield obligasi)",
   NAV: "Net Asset Value — nilai aset bersih per unit reksa dana",
+  Overlap: "Overlap sesi pasar — saat dua bursa buka bersamaan, likuiditas dan volatilitas meningkat",
+  Completeness: "Persentase tabel kritis yang telah terisi data — semakin tinggi semakin siap aplikasi beroperasi",
 };
 
 export function TermTooltip({ term, children }: { term: string; children?: ReactNode }) {

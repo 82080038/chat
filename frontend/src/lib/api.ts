@@ -917,6 +917,22 @@ export const DataIngestionAPI = {
     api.get<Record<string, unknown>>('/data-completeness'),
 };
 
+// ─── Market Scheduler API ─────────────────────────────────────────────
+
+export const MarketSchedulerAPI = {
+  getStatus: () =>
+    api.get<Record<string, unknown>>('/market-scheduler/status'),
+
+  getSchedule: () =>
+    api.get<Record<string, unknown>>('/market-scheduler/schedule'),
+
+  runDueTasks: () =>
+    api.post<Record<string, unknown>>('/market-scheduler/run', {}),
+
+  runTask: (taskId: string) =>
+    api.post<Record<string, unknown>>(`/market-scheduler/run/${taskId}`, {}),
+};
+
 // ─── Market Coverage API ──────────────────────────────────────────────
 
 export type MarketTypeCoverage = {

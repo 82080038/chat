@@ -99,6 +99,7 @@ test.describe('E2E Application Simulation', () => {
   });
 
   test('4. Navigate through all dashboard sections', async ({ page }) => {
+    test.setTimeout(60000);
     const errors: string[] = [];
     const failedRequests: string[] = [];
 

@@ -14,6 +14,7 @@ import PaperTrading from "./pages/PaperTrading";
 import AIEngine from "./pages/AIEngine";
 import MarketCoverage from "./pages/MarketCoverage";
 import DataCompleteness from "./pages/DataCompleteness";
+import MarketScheduler from "./pages/MarketScheduler";
 import { AuthProvider } from "./lib/auth";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
@@ -141,6 +142,16 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               <ProtectedRoute>
                 <Layout>
                   <DataCompleteness />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/market-scheduler"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <MarketScheduler />
                 </Layout>
               </ProtectedRoute>
             }

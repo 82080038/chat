@@ -18,6 +18,7 @@ import {
   Newspaper,
   Globe,
   Database,
+  CalendarClock,
 } from "lucide-react";
 import { MarketClock } from "@/components/MarketClock";
 
@@ -32,6 +33,7 @@ const navItems = [
   { to: "/ai-engine", label: "AI Engine", icon: Brain },
   { to: "/market-coverage", label: "Cakupan Pasar", icon: Globe },
   { to: "/data-completeness", label: "Kelengkapan Data", icon: Database },
+  { to: "/market-scheduler", label: "Jadwal Pasar", icon: CalendarClock },
   { to: "/settings", label: "Pengaturan", icon: Settings },
 ];
 
