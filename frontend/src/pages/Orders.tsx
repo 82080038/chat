@@ -21,6 +21,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { RefreshCw, AlertCircle, ShoppingCart, CheckCircle, XCircle } from "lucide-react";
+import { TermTooltip } from "@/components/ui/tooltip";
 
 type Tab = "orders" | "intents" | "decisions";
 
@@ -60,7 +61,7 @@ export default function Orders() {
       if (pfRes.status === "fulfilled") setPortfolios(pfRes.value || []);
       if (brRes.status === "fulfilled") setBrokers(brRes.value || []);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to load data";
+      const msg = err instanceof Error ? err.message : "Gagal memuat data";
       setError(msg);
     } finally {
       setLoading(false);
@@ -95,7 +96,7 @@ export default function Orders() {
       });
       fetchData();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to submit order";
+      const msg = err instanceof Error ? err.message : "Gagal mengirim order";
       setError(msg);
     }
   }
@@ -105,7 +106,7 @@ export default function Orders() {
       await api.post(`/order-intents/${id}/approve`);
       fetchData();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to approve");
+      setError(err instanceof Error ? err.message : "Gagal menyetujui");
     }
   }
 
@@ -114,7 +115,7 @@ export default function Orders() {
       await api.post(`/order-intents/${id}/reject`, { reason: "Rejected via UI" });
       fetchData();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to reject");
+      setError(err instanceof Error ? err.message : "Gagal menolak");
     }
   }
 
@@ -123,28 +124,28 @@ export default function Orders() {
       await api.post(`/orders/${id}/cancel`, { reason: "Cancelled via UI" });
       fetchData();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to cancel");
+      setError(err instanceof Error ? err.message : "Gagal membatalkan");
     }
   }
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: "orders", label: `Orders (${orders.length})` },
-    { key: "intents", label: `Intents (${intents.length})` },
-    { key: "decisions", label: `Decisions (${decisions.length})` },
+    { key: "orders", label: `Order (${orders.length})` },
+    { key: "intents", label: `Niat (${intents.length})` },
+    { key: "decisions", label: `Keputusan (${decisions.length})` },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Orders / OMS</h1>
+          <h1 className="text-2xl font-bold">Order / OMS</h1>
           <p className="text-sm text-muted-foreground">
-            Order management, intents, and decisions
+            Manajemen order, niat, dan keputusan
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          Muat Ulang
         </Button>
       </div>
 
@@ -160,19 +161,19 @@ export default function Orders() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
-            New Order
+            Order Baru
           </CardTitle>
-          <CardDescription>Submit a new order to the trading system</CardDescription>
+          <CardDescription>Kirim order baru ke sistem trading</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Portfolio</label>
+              <label className="text-sm font-medium">Portofolio</label>
               <Select
                 value={newOrder.portfolio_id}
                 onChange={(e) => setNewOrder({ ...newOrder, portfolio_id: e.target.value })}
               >
-                <option value="">Select portfolio...</option>
+                <option value="">Pilih portofolio...</option>
                 {portfolios.map((p) => (
                   <option key={p.portfolio_id} value={p.portfolio_id}>
                     {p.name}
@@ -181,25 +182,25 @@ export default function Orders() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Instrument ID</label>
+              <label className="text-sm font-medium">ID Instrumen</label>
               <Input
-                placeholder="Instrument UUID"
+                placeholder="UUID Instrumen"
                 value={newOrder.instrument_id}
                 onChange={(e) => setNewOrder({ ...newOrder, instrument_id: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Side</label>
+              <label className="text-sm font-medium">Sisi</label>
               <Select
                 value={newOrder.side}
                 onChange={(e) => setNewOrder({ ...newOrder, side: e.target.value })}
               >
-                <option value="BUY">Buy</option>
-                <option value="SELL">Sell</option>
+                <option value="BUY">Beli</option>
+                <option value="SELL">Jual</option>
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Order Type</label>
+              <label className="text-sm font-medium">Tipe Order</label>
               <Select
                 value={newOrder.order_type}
                 onChange={(e) => setNewOrder({ ...newOrder, order_type: e.target.value })}
@@ -209,7 +210,7 @@ export default function Orders() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Quantity</label>
+              <label className="text-sm font-medium">Jumlah</label>
               <Input
                 type="number"
                 placeholder="100"
@@ -219,7 +220,7 @@ export default function Orders() {
             </div>
             {newOrder.order_type === "LIMIT" && (
               <div className="space-y-2">
-                <label className="text-sm font-medium">Price</label>
+                <label className="text-sm font-medium">Harga</label>
                 <Input
                   type="number"
                   placeholder="0.00"
@@ -234,7 +235,7 @@ export default function Orders() {
               onClick={submitOrder}
               disabled={!newOrder.portfolio_id || !newOrder.instrument_id || !newOrder.quantity}
             >
-              Submit Order
+              Kirim Order
             </Button>
           </div>
         </CardContent>
@@ -264,20 +265,20 @@ export default function Orders() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Side</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Price</TableHead>
+                  <TableHead>ID Order</TableHead>
+                  <TableHead>Sisi</TableHead>
+                  <TableHead>Tipe</TableHead>
+                  <TableHead>Jumlah</TableHead>
+                  <TableHead>Harga</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {orders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground">
-                      No orders
+                      Belum ada order
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -312,7 +313,7 @@ export default function Orders() {
                             size="sm"
                             onClick={() => cancelOrder(o.order_id)}
                           >
-                            Cancel
+                            Batalkan
                           </Button>
                         ) : (
                           "—"
@@ -333,19 +334,19 @@ export default function Orders() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Intent ID</TableHead>
-                  <TableHead>Side</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Qty</TableHead>
+                  <TableHead>ID Niat</TableHead>
+                  <TableHead>Sisi</TableHead>
+                  <TableHead>Tipe</TableHead>
+                  <TableHead>Jumlah</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {intents.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-muted-foreground">
-                      No order intents
+                      Belum ada niat order
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -391,9 +392,9 @@ export default function Orders() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Decision ID</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Policy Result</TableHead>
+                  <TableHead>ID Keputusan</TableHead>
+                  <TableHead>Aksi</TableHead>
+                  <TableHead>Hasil Kebijakan</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -401,7 +402,7 @@ export default function Orders() {
                 {decisions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      No decisions
+                      Belum ada keputusan
                     </TableCell>
                   </TableRow>
                 ) : (

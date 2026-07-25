@@ -50,14 +50,14 @@ export default function Settings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Settings</h1>
+          <h1 className="text-2xl font-bold">Pengaturan</h1>
           <p className="text-sm text-muted-foreground">
-            Account and configuration management
+            Manajemen akun dan konfigurasi
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          Muat Ulang
         </Button>
       </div>
 
@@ -73,9 +73,9 @@ export default function Settings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Account
+            Akun
           </CardTitle>
-          <CardDescription>Owner account information</CardDescription>
+          <CardDescription>Informasi akun pemilik</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -84,11 +84,11 @@ export default function Settings() {
               <p className="font-medium">{owner?.email || "—"}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Display Name</p>
+              <p className="text-sm text-muted-foreground">Nama Tampilan</p>
               <p className="font-medium">{owner?.display_name || "—"}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Owner ID</p>
+              <p className="text-sm text-muted-foreground">ID Pemilik</p>
               <p className="font-mono text-xs">{owner?.owner_id || "—"}</p>
             </div>
           </div>
@@ -100,13 +100,13 @@ export default function Settings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <SettingsIcon className="h-5 w-5" />
-            Configuration
+            Konfigurasi
           </CardTitle>
-          <CardDescription>Platform configuration entries</CardDescription>
+          <CardDescription>Entri konfigurasi platform</CardDescription>
         </CardHeader>
         <CardContent>
           <Input
-            placeholder="Search config by key or category..."
+            placeholder="Cari konfigurasi berdasarkan key atau kategori..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="mb-4"
@@ -114,9 +114,9 @@ export default function Settings() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Key</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Category</TableHead>
+                <TableHead>Kunci</TableHead>
+                <TableHead>Nilai</TableHead>
+                <TableHead>Kategori</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -124,7 +124,7 @@ export default function Settings() {
               {filteredConfigs.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    No configuration entries
+                    Belum ada entri konfigurasi
                   </TableCell>
                 </TableRow>
               ) : (

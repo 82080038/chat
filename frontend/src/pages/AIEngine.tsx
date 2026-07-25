@@ -12,6 +12,8 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Brain, RefreshCw, Sparkles, AlertTriangle, TrendingUp } from "lucide-react";
+import { TermTooltip } from "@/components/ui/tooltip";
+import { formatDateTime } from "@/lib/format";
 
 type Tab = "sentiment" | "pattern" | "anomaly" | "history";
 
@@ -44,7 +46,7 @@ export default function AIEngine() {
       const res = await AIAPI.listAnalyses(1, 50);
       setHistory(res.data);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Failed to load analyses");
+      setError(e instanceof ApiError ? e.message : "Gagal memuat analisis");
     } finally {
       setLoading(false);
     }
@@ -65,7 +67,7 @@ export default function AIEngine() {
       });
       setResult(r);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Analysis failed");
+      setError(e instanceof ApiError ? e.message : "Analisis gagal");
     } finally {
       setLoading(false);
     }
@@ -83,7 +85,7 @@ export default function AIEngine() {
       });
       setResult(r);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Analysis failed");
+      setError(e instanceof Error ? e.message : "Analisis gagal");
     } finally {
       setLoading(false);
     }
@@ -101,17 +103,17 @@ export default function AIEngine() {
       });
       setResult(r);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Analysis failed");
+      setError(e instanceof Error ? e.message : "Analisis gagal");
     } finally {
       setLoading(false);
     }
   };
 
   const tabs: { key: Tab; label: string; icon: typeof Brain }[] = [
-    { key: "sentiment", label: "Sentiment", icon: Sparkles },
-    { key: "pattern", label: "Pattern", icon: TrendingUp },
-    { key: "anomaly", label: "Anomaly", icon: AlertTriangle },
-    { key: "history", label: "History", icon: RefreshCw },
+    { key: "sentiment", label: "Sentimen", icon: Sparkles },
+    { key: "pattern", label: "Pola", icon: TrendingUp },
+    { key: "anomaly", label: "Anomali", icon: AlertTriangle },
+    { key: "history", label: "Riwayat", icon: RefreshCw },
   ];
 
   return (
@@ -120,7 +122,7 @@ export default function AIEngine() {
         <h1 className="flex items-center gap-2 text-2xl font-bold">
           <Brain className="h-6 w-6" /> AI Engine
         </h1>
-        <p className="text-sm text-muted-foreground">Sentiment analysis, pattern recognition, and anomaly detection</p>
+        <p className="text-sm text-muted-foreground">Analisis sentimen, pengenalan pola, dan deteksi anomali</p>
       </div>
 
       <div className="flex gap-2 border-b border-border">
@@ -152,25 +154,25 @@ export default function AIEngine() {
       {tab === "sentiment" && (
         <Card>
           <CardHeader>
-            <CardTitle>Sentiment Analysis</CardTitle>
-            <CardDescription>Analyze text for market sentiment using weighted keyword scoring with negation and intensifier handling</CardDescription>
+            <CardTitle>Analisis Sentimen</CardTitle>
+            <CardDescription>Analisis teks untuk sentimen pasar menggunakan skor kata kunci tertimbang dengan penanganan negasi dan intensifier</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Text to Analyze</label>
+              <label className="text-sm font-medium">Teks untuk Dianalisis</label>
               <textarea
                 className="w-full min-h-[120px] rounded-md border border-border bg-background px-3 py-2 text-sm"
                 value={sentimentForm.text}
                 onChange={(e) => setSentimentForm({ ...sentimentForm, text: e.target.value })}
-                placeholder="Paste news article, social media post, or any financial text..."
+                placeholder="Tempelkan artikel berita, posting media sosial, atau teks finansial apa pun..."
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Instrument ID (optional)</label>
+              <label className="text-sm font-medium">ID Instrumen (opsional)</label>
               <Input value={sentimentForm.instrument_id} onChange={(e) => setSentimentForm({ ...sentimentForm, instrument_id: e.target.value })} placeholder="inst_xxx" />
             </div>
             <Button onClick={handleSentiment} disabled={loading || !sentimentForm.text}>
-              <Sparkles className="mr-2 h-4 w-4" /> Analyze Sentiment
+              <Sparkles className="mr-2 h-4 w-4" /> Analisis Sentimen
             </Button>
           </CardContent>
         </Card>
@@ -179,16 +181,16 @@ export default function AIEngine() {
       {tab === "pattern" && (
         <Card>
           <CardHeader>
-            <CardTitle>Pattern Recognition</CardTitle>
-            <CardDescription>Detect chart patterns from OHLCV price data</CardDescription>
+            <CardTitle>Pengenalan Pola</CardTitle>
+            <CardDescription>Deteksi pola chart dari data harga <TermTooltip term="OHLCV">OHLCV</TermTooltip></CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Instrument ID</label>
+              <label className="text-sm font-medium">ID Instrumen</label>
               <Input value={patternForm.instrument_id} onChange={(e) => setPatternForm({ ...patternForm, instrument_id: e.target.value })} placeholder="inst_xxx" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Price Data (JSON array)</label>
+              <label className="text-sm font-medium">Data Harga (array JSON)</label>
               <textarea
                 className="w-full min-h-[150px] rounded-md border border-border bg-background px-3 py-2 font-mono text-xs"
                 value={patternForm.priceDataJson}
@@ -197,7 +199,7 @@ export default function AIEngine() {
               />
             </div>
             <Button onClick={handlePattern} disabled={loading || !patternForm.instrument_id || !patternForm.priceDataJson}>
-              <TrendingUp className="mr-2 h-4 w-4" /> Detect Pattern
+              <TrendingUp className="mr-2 h-4 w-4" /> Deteksi Pola
             </Button>
           </CardContent>
         </Card>
@@ -206,16 +208,16 @@ export default function AIEngine() {
       {tab === "anomaly" && (
         <Card>
           <CardHeader>
-            <CardTitle>Anomaly Detection</CardTitle>
-            <CardDescription>Detect price or volume anomalies using z-score analysis</CardDescription>
+            <CardTitle>Deteksi Anomali</CardTitle>
+            <CardDescription>Deteksi anomali harga atau volume menggunakan analisis z-score</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Instrument ID</label>
+              <label className="text-sm font-medium">ID Instrumen</label>
               <Input value={anomalyForm.instrument_id} onChange={(e) => setAnomalyForm({ ...anomalyForm, instrument_id: e.target.value })} placeholder="inst_xxx" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Values (JSON array of numbers)</label>
+              <label className="text-sm font-medium">Nilai (array JSON angka)</label>
               <textarea
                 className="w-full min-h-[100px] rounded-md border border-border bg-background px-3 py-2 font-mono text-xs"
                 value={anomalyForm.valuesJson}
@@ -224,7 +226,7 @@ export default function AIEngine() {
               />
             </div>
             <Button onClick={handleAnomaly} disabled={loading || !anomalyForm.instrument_id || !anomalyForm.valuesJson}>
-              <AlertTriangle className="mr-2 h-4 w-4" /> Detect Anomalies
+              <AlertTriangle className="mr-2 h-4 w-4" /> Deteksi Anomali
             </Button>
           </CardContent>
         </Card>
@@ -234,7 +236,7 @@ export default function AIEngine() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Analysis History</CardTitle>
+              <CardTitle>Riwayat Analisis</CardTitle>
               <Button variant="ghost" size="icon" onClick={fetchHistory} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
@@ -242,18 +244,18 @@ export default function AIEngine() {
           </CardHeader>
           <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
             {history.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No analyses yet</p>
+              <p className="text-sm text-muted-foreground">Belum ada analisis</p>
             ) : (
               history.map((a) => (
                 <div key={a.analysis_id} className="rounded-md border border-border p-3">
                   <div className="flex items-center justify-between">
                     <Badge variant="secondary">{a.analysis_type}</Badge>
-                    <span className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground">{formatDateTime(a.created_at)}</span>
                   </div>
                   <div className="mt-2 space-y-1 text-sm">
                     {a.sentiment_label && (
                       <div className="flex gap-2">
-                        <span className="text-muted-foreground">Sentiment:</span>
+                        <span className="text-muted-foreground">Sentimen:</span>
                         <Badge variant={a.sentiment_label === "POSITIVE" ? "default" : a.sentiment_label === "NEGATIVE" ? "destructive" : "secondary"}>
                           {a.sentiment_label} ({a.sentiment_score})
                         </Badge>
@@ -261,13 +263,13 @@ export default function AIEngine() {
                     )}
                     {a.pattern_type && (
                       <div className="flex gap-2">
-                        <span className="text-muted-foreground">Pattern:</span>
-                        <span className="font-medium">{a.pattern_type} ({a.pattern_confidence}% confidence)</span>
+                        <span className="text-muted-foreground">Pola:</span>
+                        <span className="font-medium">{a.pattern_type} ({a.pattern_confidence}% keyakinan)</span>
                       </div>
                     )}
                     {a.anomaly_type && (
                       <div className="flex gap-2">
-                        <span className="text-muted-foreground">Anomaly:</span>
+                        <span className="text-muted-foreground">Anomali:</span>
                         <span className="font-medium">{a.anomaly_type} (score: {a.anomaly_score})</span>
                       </div>
                     )}
@@ -283,40 +285,40 @@ export default function AIEngine() {
       {result && (
         <Card>
           <CardHeader>
-            <CardTitle>Result</CardTitle>
+            <CardTitle>Hasil</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-md border border-border p-3">
-                <span className="text-xs text-muted-foreground">Analysis ID</span>
+                <span className="text-xs text-muted-foreground">ID Analisis</span>
                 <p className="text-sm font-mono">{result.analysis_id}</p>
               </div>
               <div className="rounded-md border border-border p-3">
-                <span className="text-xs text-muted-foreground">Type</span>
+                <span className="text-xs text-muted-foreground">Tipe</span>
                 <p className="text-sm font-medium">{result.analysis_type}</p>
               </div>
               {result.sentiment_label && (
                 <div className="rounded-md border border-border p-3">
-                  <span className="text-xs text-muted-foreground">Sentiment</span>
-                  <p className="text-sm font-medium">{result.sentiment_label} (score: {result.sentiment_score})</p>
+                  <span className="text-xs text-muted-foreground">Sentimen</span>
+                  <p className="text-sm font-medium">{result.sentiment_label} (skor: {result.sentiment_score})</p>
                 </div>
               )}
               {result.pattern_type && (
                 <div className="rounded-md border border-border p-3">
-                  <span className="text-xs text-muted-foreground">Pattern</span>
-                  <p className="text-sm font-medium">{result.pattern_type} ({result.pattern_confidence}% confidence)</p>
+                  <span className="text-xs text-muted-foreground">Pola</span>
+                  <p className="text-sm font-medium">{result.pattern_type} ({result.pattern_confidence}% keyakinan)</p>
                 </div>
               )}
               {result.anomaly_type && (
                 <div className="rounded-md border border-border p-3">
-                  <span className="text-xs text-muted-foreground">Anomaly</span>
-                  <p className="text-sm font-medium">{result.anomaly_type} (score: {result.anomaly_score})</p>
+                  <span className="text-xs text-muted-foreground">Anomali</span>
+                  <p className="text-sm font-medium">{result.anomaly_type} (skor: {result.anomaly_score})</p>
                 </div>
               )}
             </div>
             {result.summary && (
               <div className="rounded-md border border-border p-3">
-                <span className="text-xs text-muted-foreground">Summary</span>
+                <span className="text-xs text-muted-foreground">Ringkasan</span>
                 <p className="mt-1 text-sm">{result.summary}</p>
               </div>
             )}

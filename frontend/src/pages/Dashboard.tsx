@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { api, type Signal, type Portfolio, type Alert } from "@/lib/api";
+import { formatDateTime, formatPercent } from "@/lib/format";
+import { TermTooltip } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -63,7 +65,7 @@ export default function Dashboard() {
       if (alertsRes.status === "fulfilled")
         setAlerts(alertsRes.value || []);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to load data";
+      const msg = err instanceof Error ? err.message : "Gagal memuat data";
       setError(msg);
     } finally {
       setLoading(false);
@@ -79,14 +81,14 @@ export default function Dashboard() {
       {/* Page Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <h1 className="text-2xl font-bold">Dasbor</h1>
           <p className="text-sm text-muted-foreground">
-            Market overview, portfolio summary, and recent signals
+            Ikhtisar pasar, ringkasan portofolio, dan sinyal terbaru
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          Muat Ulang
         </Button>
       </div>
 
@@ -101,28 +103,28 @@ export default function Dashboard() {
       {/* Stats Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Platform Status"
+          title="Status Platform"
           value={health?.status || "—"}
           icon={<Activity className="h-5 w-5 text-green-500" />}
-          subtitle={metrics ? `${metrics.services_registered} services` : ""}
+          subtitle={metrics ? `${metrics.services_registered} layanan` : ""}
         />
         <StatCard
-          title="Portfolios"
+          title="Portofolio"
           value={String(portfolios.length)}
           icon={<Wallet className="h-5 w-5 text-blue-500" />}
-          subtitle="Active portfolios"
+          subtitle="Portofolio aktif"
         />
         <StatCard
-          title="Recent Signals"
+          title="Sinyal Terbaru"
           value={String(signals.length)}
           icon={<TrendingUp className="h-5 w-5 text-purple-500" />}
-          subtitle="Latest 5 signals"
+          subtitle="5 sinyal terakhir"
         />
         <StatCard
-          title="Active Alerts"
+          title="Peringatan Aktif"
           value={String(alerts.filter((a) => a.is_active).length)}
           icon={<Bell className="h-5 w-5 text-orange-500" />}
-          subtitle="Monitoring alerts"
+          subtitle="Peringatan terpantau"
         />
       </div>
 
@@ -133,14 +135,14 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              Recent Signals
+              Sinyal Terbaru
             </CardTitle>
-            <CardDescription>Latest trading signals generated</CardDescription>
+            <CardDescription>Sinyal trading yang baru dihasilkan</CardDescription>
           </CardHeader>
           <CardContent>
             {signals.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No signals available
+                Belum ada sinyal tersedia
               </p>
             ) : (
               <div className="space-y-3">
@@ -154,9 +156,11 @@ export default function Dashboard() {
                         <Badge variant={sig.direction === "BULLISH" ? "success" : sig.direction === "BEARISH" ? "destructive" : "secondary"}>
                           {sig.direction}
                         </Badge>
-                        <span className="text-sm font-medium">
-                          {sig.signal_type}
-                        </span>
+                        <TermTooltip term={sig.signal_type === "MOMENTUM" ? "Momentum" : sig.signal_type === "MEAN_REVERSION" ? "MeanReversion" : sig.signal_type}>
+                          <span className="text-sm font-medium">
+                            {sig.signal_type}
+                          </span>
+                        </TermTooltip>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {sig.timeframe} · {sig.model_version}
@@ -164,10 +168,10 @@ export default function Dashboard() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium">
-                        {parseFloat(sig.strength).toFixed(1)}%
+                        {formatPercent(sig.strength, 1)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {sig.signal_type}
+                        {formatDateTime(sig.created_at)}
                       </p>
                     </div>
                   </div>
@@ -182,14 +186,14 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-primary" />
-              Active Alerts
+              Peringatan Aktif
             </CardTitle>
-            <CardDescription>Price, signal, and risk alerts</CardDescription>
+            <CardDescription>Peringatan harga, sinyal, dan risiko</CardDescription>
           </CardHeader>
           <CardContent>
             {alerts.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No alerts configured
+                Belum ada peringatan dikonfigurasi
               </p>
             ) : (
               <div className="space-y-3">
@@ -222,7 +226,7 @@ export default function Dashboard() {
                       )}
                     </div>
                     <Badge variant={alert.is_active ? "success" : "outline"}>
-                      {alert.is_active ? "Active" : "Inactive"}
+                      {alert.is_active ? "Aktif" : "Nonaktif"}
                     </Badge>
                   </div>
                 ))}
@@ -237,14 +241,14 @@ export default function Dashboard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-primary" />
-            Portfolios
+            Portofolio
           </CardTitle>
-          <CardDescription>Your investment portfolios</CardDescription>
+          <CardDescription>Portofolio investasi Anda</CardDescription>
         </CardHeader>
         <CardContent>
           {portfolios.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No portfolios created yet
+              Belum ada portofolio dibuat
             </p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -260,7 +264,7 @@ export default function Dashboard() {
                     </Badge>
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Base currency: {pf.base_currency}
+                    Mata uang dasar: {pf.base_currency}
                   </p>
                 </div>
               ))}

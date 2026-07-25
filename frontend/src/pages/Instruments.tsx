@@ -14,6 +14,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Search, RefreshCw, AlertCircle } from "lucide-react";
+import { TermTooltip } from "@/components/ui/tooltip";
 
 export default function Instruments() {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ export default function Instruments() {
       setInstruments(data || []);
       if (meta) setTotalPages(meta.total_pages);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to load instruments";
+      const msg = err instanceof Error ? err.message : "Gagal memuat instrumen";
       setError(msg);
     } finally {
       setLoading(false);
@@ -52,9 +53,9 @@ export default function Instruments() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Instruments</h1>
+          <h1 className="text-2xl font-bold">Instrumen</h1>
           <p className="text-sm text-muted-foreground">
-            Browse and search market instruments
+            Jelajahi dan cari instrumen pasar
           </p>
         </div>
         <Button
@@ -64,7 +65,7 @@ export default function Instruments() {
           disabled={loading}
         >
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          Muat Ulang
         </Button>
       </div>
 
@@ -81,7 +82,7 @@ export default function Instruments() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by symbol or name..."
+                placeholder="Cari berdasarkan simbol atau nama..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -96,11 +97,11 @@ export default function Instruments() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Symbol</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Asset Class</TableHead>
-                <TableHead>Sector</TableHead>
-                <TableHead>Currency</TableHead>
+                <TableHead>Simbol</TableHead>
+                <TableHead>Nama</TableHead>
+                <TableHead><TermTooltip term="OHLCV">Kelas Aset</TermTooltip></TableHead>
+                <TableHead>Sektor</TableHead>
+                <TableHead>Mata Uang</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -108,7 +109,7 @@ export default function Instruments() {
               {instruments.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    No instruments found
+                    Tidak ada instrumen ditemukan
                   </TableCell>
                 </TableRow>
               ) : (
@@ -141,7 +142,7 @@ export default function Instruments() {
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
+                Halaman {page} dari {totalPages}
               </span>
               <div className="flex gap-2">
                 <Button
@@ -150,7 +151,7 @@ export default function Instruments() {
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  Previous
+                  Sebelumnya
                 </Button>
                 <Button
                   variant="outline"
@@ -158,7 +159,7 @@ export default function Instruments() {
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => p + 1)}
                 >
-                  Next
+                  Berikutnya
                 </Button>
               </div>
             </div>

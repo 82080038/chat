@@ -20,6 +20,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ShoppingCart, Wallet, RefreshCw, X } from "lucide-react";
+import { TermTooltip } from "@/components/ui/tooltip";
+import { formatRupiah, formatNumber } from "@/lib/format";
 
 export default function PaperTrading() {
   const [orders, setOrders] = useState<PaperOrder[]>([]);
@@ -51,7 +53,7 @@ export default function PaperTrading() {
       setPositions(pos);
       setOrders(ord.data);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Failed to load data");
+      setError(e instanceof ApiError ? e.message : "Gagal memuat data");
     } finally {
       setLoading(false);
     }
@@ -74,7 +76,7 @@ export default function PaperTrading() {
       setForm({ ...form, instrument_id: "", quantity: "100", price: "" });
       fetchData();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Failed to place order");
+      setError(e instanceof ApiError ? e.message : "Gagal menempatkan order");
     }
   };
 
@@ -83,33 +85,32 @@ export default function PaperTrading() {
       await PaperTradingAPI.cancelOrder(portfolioId, orderId);
       fetchData();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Failed to cancel order");
+      setError(e instanceof ApiError ? e.message : "Gagal membatalkan order");
     }
   };
 
   const fmt = (v: number | string | null, decimals = 2) => {
-    if (v === null || v === undefined) return "-";
-    return Number(v).toLocaleString("id-ID", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return formatNumber(v, decimals);
   };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Paper Trading</h1>
-        <p className="text-sm text-muted-foreground">Simulated trading with virtual capital</p>
+        <p className="text-sm text-muted-foreground"><TermTooltip term="PaperTrading">Simulasi trading</TermTooltip> dengan modal virtual</p>
       </div>
 
       <Card>
         <CardContent className="pt-6">
           <div className="flex gap-3">
             <Input
-              placeholder="Portfolio ID"
+              placeholder="ID Portofolio"
               value={portfolioId}
               onChange={(e) => setPortfolioId(e.target.value)}
               className="max-w-xs"
             />
             <Button variant="outline" onClick={fetchData} disabled={loading || !portfolioId}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Load
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Muat
             </Button>
           </div>
         </CardContent>
@@ -127,21 +128,21 @@ export default function PaperTrading() {
             <CardContent className="pt-6">
               <div className="flex items-center gap-2">
                 <Wallet className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Cash Balance</span>
+                <span className="text-sm text-muted-foreground">Saldo Kas</span>
               </div>
-              <p className="mt-2 text-2xl font-bold">Rp {fmt(balance.cash_balance, 0)}</p>
+              <p className="mt-2 text-2xl font-bold">{formatRupiah(balance.cash_balance, 0)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <span className="text-sm text-muted-foreground">Available Balance</span>
-              <p className="mt-2 text-2xl font-bold">Rp {fmt(balance.available_balance, 0)}</p>
+              <span className="text-sm text-muted-foreground">Saldo Tersedia</span>
+              <p className="mt-2 text-2xl font-bold">{formatRupiah(balance.available_balance, 0)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <span className="text-sm text-muted-foreground">Total Portfolio Value</span>
-              <p className="mt-2 text-2xl font-bold">Rp {fmt(balance.total_value, 0)}</p>
+              <span className="text-sm text-muted-foreground">Total Nilai Portofolio</span>
+              <p className="mt-2 text-2xl font-bold">{formatRupiah(balance.total_value, 0)}</p>
             </CardContent>
           </Card>
         </div>
@@ -149,41 +150,41 @@ export default function PaperTrading() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Place Order</CardTitle>
-          <CardDescription>Simulated order ticket</CardDescription>
+          <CardTitle>Tempatkan Order</CardTitle>
+          <CardDescription>Tiket order simulasi</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Instrument ID</label>
+            <label className="text-sm font-medium">ID Instrumen</label>
             <Input value={form.instrument_id} onChange={(e) => setForm({ ...form, instrument_id: e.target.value })} placeholder="inst_xxx" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Side</label>
+            <label className="text-sm font-medium">Sisi</label>
             <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" value={form.side} onChange={(e) => setForm({ ...form, side: e.target.value })}>
-              <option value="BUY">BUY</option>
-              <option value="SELL">SELL</option>
+              <option value="BUY">BELI</option>
+              <option value="SELL">JUAL</option>
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Order Type</label>
+            <label className="text-sm font-medium">Tipe Order</label>
             <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" value={form.order_type} onChange={(e) => setForm({ ...form, order_type: e.target.value })}>
               <option value="MARKET">MARKET</option>
               <option value="LIMIT">LIMIT</option>
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Quantity</label>
+            <label className="text-sm font-medium">Jumlah</label>
             <Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
           </div>
           {form.order_type === "LIMIT" && (
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Limit Price</label>
+              <label className="text-sm font-medium">Harga Limit</label>
               <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
             </div>
           )}
           <div className="flex items-end">
             <Button onClick={handlePlaceOrder} disabled={!portfolioId || !form.instrument_id}>
-              <ShoppingCart className="mr-2 h-4 w-4" /> Place Order
+              <ShoppingCart className="mr-2 h-4 w-4" /> Tempatkan Order
             </Button>
           </div>
         </CardContent>
@@ -192,19 +193,19 @@ export default function PaperTrading() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Positions ({positions.length})</CardTitle>
+            <CardTitle>Posisi ({positions.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {positions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No open positions</p>
+              <p className="text-sm text-muted-foreground">Belum ada posisi terbuka</p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Instrument</TableHead>
-                    <TableHead className="text-right">Qty</TableHead>
-                    <TableHead className="text-right">Avg Cost</TableHead>
-                    <TableHead className="text-right">Mkt Value</TableHead>
+                    <TableHead>Instrumen</TableHead>
+                    <TableHead className="text-right">Jumlah</TableHead>
+                    <TableHead className="text-right">Biaya Rata-rata</TableHead>
+                    <TableHead className="text-right">Nilai Pasar</TableHead>
                     <TableHead className="text-right">PnL</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -228,19 +229,19 @@ export default function PaperTrading() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Orders ({orders.length})</CardTitle>
+            <CardTitle>Order ({orders.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {orders.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No orders</p>
+              <p className="text-sm text-muted-foreground">Belum ada order</p>
             ) : (
               <div className="max-h-[400px] overflow-y-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Instrument</TableHead>
-                      <TableHead>Side</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead>Instrumen</TableHead>
+                      <TableHead>Sisi</TableHead>
+                      <TableHead className="text-right">Jumlah</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead></TableHead>
                     </TableRow>

@@ -18,6 +18,8 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Shield, RefreshCw, AlertCircle, AlertTriangle, Activity } from "lucide-react";
+import { TermTooltip } from "@/components/ui/tooltip";
+import { formatDateTime, formatPercent } from "@/lib/format";
 
 export default function RiskMonitor() {
   const [profiles, setProfiles] = useState<RiskProfile[]>([]);
@@ -55,7 +57,7 @@ export default function RiskMonitor() {
         setAssessments(allAssessments);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to load risk data";
+      const msg = err instanceof Error ? err.message : "Gagal memuat data risiko";
       setError(msg);
     } finally {
       setLoading(false);
@@ -73,14 +75,14 @@ export default function RiskMonitor() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Risk Monitor</h1>
+          <h1 className="text-2xl font-bold">Monitor Risiko</h1>
           <p className="text-sm text-muted-foreground">
-            Risk profiles, assessments, and events
+            Profil risiko, penilaian, dan peristiwa
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          Muat Ulang
         </Button>
       </div>
 
@@ -97,7 +99,7 @@ export default function RiskMonitor() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Risk Profiles</p>
+                <p className="text-sm text-muted-foreground">Profil Risiko</p>
                 <p className="text-2xl font-bold">{profiles.length}</p>
               </div>
               <Shield className="h-8 w-8 text-primary" />
@@ -108,7 +110,7 @@ export default function RiskMonitor() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Assessments</p>
+                <p className="text-sm text-muted-foreground">Penilaian</p>
                 <p className="text-2xl font-bold">{assessments.length}</p>
               </div>
               <Activity className="h-8 w-8 text-blue-500" />
@@ -119,7 +121,7 @@ export default function RiskMonitor() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Open Events</p>
+                <p className="text-sm text-muted-foreground">Peristiwa Terbuka</p>
                 <p className="text-2xl font-bold text-red-500">{openEvents.length}</p>
               </div>
               <AlertTriangle className="h-8 w-8 text-red-500" />
@@ -130,7 +132,7 @@ export default function RiskMonitor() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Acknowledged</p>
+                <p className="text-sm text-muted-foreground">Diketahui</p>
                 <p className="text-2xl font-bold text-orange-500">{acknowledgedEvents.length}</p>
               </div>
               <AlertCircle className="h-8 w-8 text-orange-500" />
@@ -144,16 +146,16 @@ export default function RiskMonitor() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            Risk Profiles
+            Profil Risiko
           </CardTitle>
-          <CardDescription>Configured risk tolerance profiles</CardDescription>
+          <CardDescription>Profil toleransi risiko yang dikonfigurasi</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Tolerance</TableHead>
+                <TableHead>Nama</TableHead>
+                <TableHead>Toleransi</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -161,7 +163,7 @@ export default function RiskMonitor() {
               {profiles.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={3} className="text-center text-muted-foreground">
-                    No risk profiles
+                    Belum ada profil risiko
                   </TableCell>
                 </TableRow>
               ) : (
@@ -194,25 +196,25 @@ export default function RiskMonitor() {
       {/* Risk Assessments */}
       <Card>
         <CardHeader>
-          <CardTitle>Risk Assessments</CardTitle>
-          <CardDescription>Portfolio risk measurements</CardDescription>
+          <CardTitle>Penilaian Risiko</CardTitle>
+          <CardDescription>Pengukuran risiko portofolio</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Portfolio</TableHead>
-                <TableHead>VaR 95%</TableHead>
-                <TableHead>Max Drawdown</TableHead>
-                <TableHead>Concentration</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead>Portofolio</TableHead>
+                <TableHead><TermTooltip term="VaR">VaR 95%</TermTooltip></TableHead>
+                <TableHead><TermTooltip term="Drawdown">Max Drawdown</TermTooltip></TableHead>
+                <TableHead><TermTooltip term="Concentration">Konsentrasi</TermTooltip></TableHead>
+                <TableHead>Tanggal</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {assessments.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    No risk assessments
+                    Belum ada penilaian risiko
                   </TableCell>
                 </TableRow>
               ) : (
@@ -231,7 +233,7 @@ export default function RiskMonitor() {
                         {a.concentration_index ? Number(a.concentration_index).toFixed(3) : "—"}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {a.created_at}
+                        {formatDateTime(a.created_at)}
                       </TableCell>
                     </TableRow>
                   );
@@ -247,26 +249,26 @@ export default function RiskMonitor() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
-            Risk Events
+            Peristiwa Risiko
           </CardTitle>
-          <CardDescription>Risk breaches and alerts</CardDescription>
+          <CardDescription>Pelanggaran risiko dan peringatan</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Severity</TableHead>
+                <TableHead>Tipe</TableHead>
+                <TableHead>Keparahan</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead>Deskripsi</TableHead>
+                <TableHead>Tanggal</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {events.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    No risk events
+                    Belum ada peristiwa risiko
                   </TableCell>
                 </TableRow>
               ) : (
@@ -300,7 +302,7 @@ export default function RiskMonitor() {
                       {e.description || "—"}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {e.created_at}
+                      {formatDateTime(e.created_at)}
                     </TableCell>
                   </TableRow>
                 ))

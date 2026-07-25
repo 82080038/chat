@@ -22,9 +22,9 @@ test.describe('E2E Application Simulation', () => {
     await expect(page).toHaveURL(/\/login/);
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /quick login/i })).toBeVisible();
-    await expect(page.getByText('Capital Market Platform')).toBeVisible();
+    await expect(page.getByRole('button', { name: /masuk/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /login cepat/i })).toBeVisible();
+    await expect(page.getByText('Platform Pasar Modal')).toBeVisible();
 
     await page.screenshot({ path: 'tests/screenshots/01-login-page.png', fullPage: true });
     if (errors.length > 0) console.log('LOGIN PAGE ERRORS:', JSON.stringify(errors, null, 2));
@@ -54,7 +54,7 @@ test.describe('E2E Application Simulation', () => {
     await page.waitForLoadState('networkidle');
 
     await expect(page).toHaveURL(/\/login/);
-    await page.getByRole('button', { name: /quick login/i }).click();
+    await page.getByRole('button', { name: /login cepat/i }).click();
 
     await page.waitForURL(`${BASE}`, { timeout: 10000 });
     await page.waitForLoadState('networkidle');
@@ -81,7 +81,7 @@ test.describe('E2E Application Simulation', () => {
     });
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.getByRole('button', { name: /quick login/i }).click();
+    await page.getByRole('button', { name: /login cepat/i }).click();
     await page.waitForURL(`${BASE}`, { timeout: 10000 });
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3000);
@@ -119,7 +119,7 @@ test.describe('E2E Application Simulation', () => {
     });
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.getByRole('button', { name: /quick login/i }).click();
+    await page.getByRole('button', { name: /login cepat/i }).click();
     await page.waitForURL(`${BASE}`, { timeout: 10000 });
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
@@ -175,7 +175,7 @@ test.describe('E2E Application Simulation', () => {
     });
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.getByRole('button', { name: /quick login/i }).click();
+    await page.getByRole('button', { name: /login cepat/i }).click();
     await page.waitForURL(`${BASE}`, { timeout: 10000 });
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(5000);
@@ -208,7 +208,7 @@ test.describe('E2E Application Simulation', () => {
 
     await page.locator('input[type="email"]').fill('owner@platform.local');
     await page.locator('input[type="password"]').fill('Test@1234567');
-    await page.getByRole('button', { name: /sign in/i }).click();
+    await page.getByRole('button', { name: /masuk/i }).click();
 
     await page.waitForURL(`${BASE}`, { timeout: 10000 });
     await page.waitForLoadState('networkidle');
@@ -232,18 +232,18 @@ test.describe('E2E Application Simulation', () => {
     });
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.getByRole('button', { name: /quick login/i }).click();
+    await page.getByRole('button', { name: /login cepat/i }).click();
     await page.waitForURL(`${BASE}`, { timeout: 10000 });
     await page.waitForLoadState('networkidle');
 
-    const logoutBtn = page.getByRole('button', { name: /logout/i }).or(page.getByText(/logout/i));
+    const logoutBtn = page.getByRole('button', { name: /keluar/i }).or(page.getByText(/keluar/i));
     if (await logoutBtn.count() > 0) {
       await logoutBtn.first().click();
       await page.waitForURL(/\/login/, { timeout: 5000 }).catch(() => {});
       console.log(`After logout URL: ${page.url()}`);
       await page.screenshot({ path: 'tests/screenshots/07-after-logout.png', fullPage: true });
     } else {
-      console.log('No logout button found');
+      console.log('Tombol keluar tidak ditemukan');
     }
 
     if (errors.length > 0) console.log('LOGOUT ERRORS:', JSON.stringify(errors, null, 2));

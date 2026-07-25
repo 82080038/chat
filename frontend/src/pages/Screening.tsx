@@ -15,6 +15,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { RefreshCw, AlertCircle, Filter, Search } from "lucide-react";
+import { TermTooltip } from "@/components/ui/tooltip";
 
 export default function Screening() {
   const navigate = useNavigate();
@@ -45,7 +46,7 @@ export default function Screening() {
       const res = await api.post<ScreeningResponse>("/screening", criteria);
       setResults(res.results || []);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to run screening";
+      const msg = err instanceof Error ? err.message : "Gagal menjalankan screening";
       setError(msg);
     } finally {
       setLoading(false);
@@ -58,12 +59,12 @@ export default function Screening() {
         <div>
           <h1 className="text-2xl font-bold">Screening</h1>
           <p className="text-sm text-muted-foreground">
-            Multi-factor screening and scanning
+            <TermTooltip term="Screening">Screening</TermTooltip> multi-faktor dan pemindaian pasar
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={runScreening} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Scan
+          Pindai
         </Button>
       </div>
 
@@ -78,22 +79,22 @@ export default function Screening() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
-            Screening Criteria
+            Kriteria Screening
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Asset Class</label>
+              <label className="text-sm font-medium">Kelas Aset</label>
               <Select value={assetClass} onChange={(e) => setAssetClass(e.target.value)}>
-                <option value="EQUITY">Equity</option>
-                <option value="BOND">Bond</option>
+                <option value="EQUITY">Saham</option>
+                <option value="BOND">Obligasi</option>
                 <option value="ETF">ETF</option>
-                <option value="DERIVATIVE">Derivative</option>
+                <option value="DERIVATIVE">Derivatif</option>
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Min ROE (%)</label>
+              <label className="text-sm font-medium"><TermTooltip term="ROE">ROE Min.</TermTooltip> (%)</label>
               <Input
                 type="number"
                 placeholder="e.g. 15"
@@ -102,7 +103,7 @@ export default function Screening() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Max P/E</label>
+              <label className="text-sm font-medium"><TermTooltip term="PE">P/E Maks.</TermTooltip></label>
               <Input
                 type="number"
                 placeholder="e.g. 20"
@@ -111,7 +112,7 @@ export default function Screening() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Max Debt/Equity</label>
+              <label className="text-sm font-medium"><TermTooltip term="DebtEquity">Hutang/Ekuity Maks.</TermTooltip></label>
               <Input
                 type="number"
                 placeholder="e.g. 1.0"
@@ -120,7 +121,7 @@ export default function Screening() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Min Revenue Growth (%)</label>
+              <label className="text-sm font-medium">Pertumbuhan Pendapatan Min. (%)</label>
               <Input
                 type="number"
                 placeholder="e.g. 10"
@@ -129,16 +130,16 @@ export default function Screening() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Trend</label>
+              <label className="text-sm font-medium">Tren</label>
               <Select value={trend} onChange={(e) => setTrend(e.target.value)}>
-                <option value="">Any</option>
-                <option value="UPTREND">Uptrend</option>
-                <option value="DOWNTREND">Downtrend</option>
+                <option value="">Semua</option>
+                <option value="UPTREND">Naik</option>
+                <option value="DOWNTREND">Turun</option>
                 <option value="SIDEWAYS">Sideways</option>
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Min Screening Score</label>
+              <label className="text-sm font-medium">Skor Screening Min.</label>
               <Input
                 type="number"
                 placeholder="0-100"
@@ -149,7 +150,7 @@ export default function Screening() {
             <div className="flex items-end">
               <Button className="w-full" onClick={runScreening} disabled={loading}>
                 <Search className="mr-2 h-4 w-4" />
-                Run Screening
+                Jalankan Screening
               </Button>
             </div>
           </div>
@@ -161,18 +162,18 @@ export default function Screening() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Symbol</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Asset Class</TableHead>
-                <TableHead className="text-center">Score</TableHead>
-                <TableHead>Matched Criteria</TableHead>
+                <TableHead>Simbol</TableHead>
+                <TableHead>Nama</TableHead>
+                <TableHead>Kelas Aset</TableHead>
+                <TableHead className="text-center">Skor</TableHead>
+                <TableHead>Kriteria Cocok</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {results.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    {results.length === 0 ? "Click \"Run Screening\" to search" : "No instruments match the criteria"}
+                    {results.length === 0 ? "Klik \"Jalankan Screening\" untuk mencari" : "Tidak ada instrumen yang cocok dengan kriteria"}
                   </TableCell>
                 </TableRow>
               ) : (

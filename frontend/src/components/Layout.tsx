@@ -18,18 +18,19 @@ import {
   Newspaper,
   Globe,
 } from "lucide-react";
+import { MarketClock } from "@/components/MarketClock";
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/instruments", label: "Instruments", icon: Search },
+  { to: "/", label: "Dasbor", icon: LayoutDashboard },
+  { to: "/instruments", label: "Instrumen", icon: Search },
   { to: "/screening", label: "Screening", icon: LineChart },
-  { to: "/orders", label: "Orders / OMS", icon: ShoppingCart },
+  { to: "/orders", label: "Order / OMS", icon: ShoppingCart },
   { to: "/paper-trading", label: "Paper Trading", icon: Newspaper },
   { to: "/backtest", label: "Backtesting", icon: FlaskConical },
-  { to: "/risk", label: "Risk Monitor", icon: Shield },
+  { to: "/risk", label: "Monitor Risiko", icon: Shield },
   { to: "/ai-engine", label: "AI Engine", icon: Brain },
-  { to: "/market-coverage", label: "Market Coverage", icon: Globe },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/market-coverage", label: "Cakupan Pasar", icon: Globe },
+  { to: "/settings", label: "Pengaturan", icon: Settings },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -94,6 +95,9 @@ export default function Layout({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 border-t border-border p-4">
+          <div className="mb-3">
+            <MarketClock />
+          </div>
           <div className="mb-2 truncate text-sm text-muted-foreground">
             {owner?.email}
           </div>
@@ -104,7 +108,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             onClick={logout}
           >
             <LogOut className="mr-2 h-4 w-4" />
-            Logout
+            Keluar
           </Button>
         </div>
       </aside>

@@ -18,22 +18,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RefreshCw, TrendingUp, TrendingDown, Minus, Activity, Globe, Database, Layers } from "lucide-react";
+import { TermTooltip } from "@/components/ui/tooltip";
+import { formatNumber, formatPercent } from "@/lib/format";
 
 const CAPABILITY_LABELS: Record<string, string> = {
-  ohlcv: "OHLCV Data",
-  indicators: "Technical Indicators",
-  signals: "Signal Generation",
-  screening: "Screening Engine",
-  valuation: "Valuation (DCF/Relative)",
-  trading: "Order Execution",
-  portfolio: "Portfolio Management",
-  risk: "Risk Assessment",
+  ohlcv: "Data OHLCV",
+  indicators: "Indikator Teknikal",
+  signals: "Generasi Sinyal",
+  screening: "Mesin Screening",
+  valuation: "Valuasi (DCF/Relatif)",
+  trading: "Eksekusi Order",
+  portfolio: "Manajemen Portofolio",
+  risk: "Penilaian Risiko",
   backtest: "Backtesting",
-  regime: "Market Regime",
-  factors: "Factor Matrix",
-  nav_tracking: "NAV Tracking",
-  yield_tracking: "Yield Tracking",
-  greeks: "Greeks Calculation",
+  regime: "Regime Pasar",
+  factors: "Matriks Faktor",
+  nav_tracking: "Pelacakan NAV",
+  yield_tracking: "Pelacakan Yield",
+  greeks: "Perhitungan Greeks",
 };
 
 const ASSET_CLASS_COLORS: Record<string, string> = {
@@ -65,7 +67,7 @@ export default function MarketCoveragePage() {
       const data = await MarketCoverageAPI.getCoverage();
       setCoverage(data);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Failed to load market coverage");
+      setError(e instanceof ApiError ? e.message : "Gagal memuat cakupan pasar");
     } finally {
       setLoading(false);
     }
@@ -76,8 +78,7 @@ export default function MarketCoveragePage() {
   }, [fetchData]);
 
   const fmt = (v: number | string | null | undefined, decimals = 0) => {
-    if (v === null || v === undefined) return "-";
-    return Number(v).toLocaleString("id-ID", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return formatNumber(v, decimals);
   };
 
   const activeMarketTypes = coverage?.market_types.filter((m) => m.is_active) ?? [];
@@ -89,7 +90,7 @@ export default function MarketCoveragePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Market Coverage</h1>
+          <h1 className="text-2xl font-bold">Cakupan Pasar</h1>
           <p className="text-sm text-muted-foreground">
             Jenis pasar modal yang didukung aplikasi & aktivitas yang sedang berjalan
           </p>
@@ -99,7 +100,7 @@ export default function MarketCoveragePage() {
           disabled={loading}
           className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
         >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Muat Ulang
         </button>
       </div>
 
@@ -116,7 +117,7 @@ export default function MarketCoveragePage() {
             <CardContent className="pt-6">
               <div className="flex items-center gap-2">
                 <Layers className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Supported Types</span>
+                <span className="text-sm text-muted-foreground">Jenis Didukung</span>
               </div>
               <p className="mt-2 text-2xl font-bold">{coverage.summary.total_supported_types}</p>
             </CardContent>
@@ -125,7 +126,7 @@ export default function MarketCoveragePage() {
             <CardContent className="pt-6">
               <div className="flex items-center gap-2">
                 <Activity className="h-5 w-5 text-green-600" />
-                <span className="text-sm text-muted-foreground">Active Markets</span>
+                <span className="text-sm text-muted-foreground">Pasar Aktif</span>
               </div>
               <p className="mt-2 text-2xl font-bold text-green-600">{coverage.summary.active_market_types}</p>
             </CardContent>
@@ -134,17 +135,17 @@ export default function MarketCoveragePage() {
             <CardContent className="pt-6">
               <div className="flex items-center gap-2">
                 <Database className="h-5 w-5 text-blue-600" />
-                <span className="text-sm text-muted-foreground">Live Data</span>
+                <span className="text-sm text-muted-foreground">Data Langsung</span>
               </div>
               <p className="mt-2 text-2xl font-bold text-blue-600">{coverage.summary.instruments_with_live_data}</p>
-              <p className="text-xs text-muted-foreground">asset classes with OHLCV</p>
+              <p className="text-xs text-muted-foreground">kelas aset dengan OHLCV</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2">
                 <Globe className="h-5 w-5 text-purple-600" />
-                <span className="text-sm text-muted-foreground">Instruments</span>
+                <span className="text-sm text-muted-foreground">Instrumen</span>
               </div>
               <p className="mt-2 text-2xl font-bold">{coverage.summary.total_instruments}</p>
             </CardContent>
@@ -153,7 +154,7 @@ export default function MarketCoveragePage() {
             <CardContent className="pt-6">
               <div className="flex items-center gap-2">
                 <Globe className="h-5 w-5 text-amber-600" />
-                <span className="text-sm text-muted-foreground">Exchanges</span>
+                <span className="text-sm text-muted-foreground">Bursa</span>
               </div>
               <p className="mt-2 text-2xl font-bold">{coverage.summary.total_exchanges}</p>
             </CardContent>
@@ -192,22 +193,22 @@ export default function MarketCoveragePage() {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <span className="text-muted-foreground">Instruments</span>
+                      <span className="text-muted-foreground">Instrumen</span>
                       <p className="font-semibold">{mt.instrument_count}</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Data Source</span>
+                      <span className="text-muted-foreground">Sumber Data</span>
                       <p className="font-semibold">{mt.data_source}</p>
                     </div>
                     {mt.ohlcv && (
                       <div>
-                        <span className="text-muted-foreground">OHLCV Records</span>
+                        <span className="text-muted-foreground">Record OHLCV</span>
                         <p className="font-semibold">{fmt(mt.ohlcv.total_records)}</p>
                       </div>
                     )}
                     {mt.ohlcv && (
                       <div>
-                        <span className="text-muted-foreground">Data Range</span>
+                        <span className="text-muted-foreground">Rentang Data</span>
                         <p className="font-semibold text-xs">
                           {mt.ohlcv.earliest_date} → {mt.ohlcv.latest_date}
                         </p>
@@ -215,31 +216,31 @@ export default function MarketCoveragePage() {
                     )}
                     {mt.signals && (
                       <div>
-                        <span className="text-muted-foreground">Active Signals</span>
+                        <span className="text-muted-foreground">Sinyal Aktif</span>
                         <p className="font-semibold text-green-600">{mt.signals.signal_count}</p>
                       </div>
                     )}
                     {mt.recommendations && (
                       <div>
-                        <span className="text-muted-foreground">Recommendations</span>
+                        <span className="text-muted-foreground">Rekomendasi</span>
                         <p className="font-semibold text-blue-600">{mt.recommendations.rec_count}</p>
                       </div>
                     )}
                     {mt.positions && (
                       <div>
-                        <span className="text-muted-foreground">Positions</span>
+                        <span className="text-muted-foreground">Posisi</span>
                         <p className="font-semibold">{mt.positions.position_count}</p>
                       </div>
                     )}
                   </div>
                   <div className="flex gap-2 pt-1">
                     {mt.is_active ? (
-                      <Badge className="bg-green-600 text-xs">Active</Badge>
+                      <Badge className="bg-green-600 text-xs">Aktif</Badge>
                     ) : (
-                      <Badge variant="outline" className="text-xs">Inactive</Badge>
+                      <Badge variant="outline" className="text-xs">Nonaktif</Badge>
                     )}
                     {mt.has_live_data && (
-                      <Badge className="bg-blue-600 text-xs">Live Data</Badge>
+                      <Badge className="bg-blue-600 text-xs">Data Langsung</Badge>
                     )}
                   </div>
                 </CardContent>
@@ -268,11 +269,11 @@ export default function MarketCoveragePage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Market</TableHead>
+                      <TableHead>Pasar</TableHead>
                       <TableHead>Ticker</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Direction</TableHead>
-                      <TableHead className="text-right">Strength</TableHead>
+                      <TableHead>Tipe</TableHead>
+                      <TableHead>Arah</TableHead>
+                      <TableHead className="text-right">Kekuatan</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -316,10 +317,10 @@ export default function MarketCoveragePage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Market</TableHead>
+                      <TableHead>Pasar</TableHead>
                       <TableHead>Ticker</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Confidence</TableHead>
+                      <TableHead>Aksi</TableHead>
+                      <TableHead>Keyakinan</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>

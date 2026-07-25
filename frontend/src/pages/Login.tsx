@@ -21,7 +21,7 @@ export default function Login() {
       await login(emailVal, passVal);
       navigate("/");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Login failed";
+      const msg = err instanceof Error ? err.message : "Gagal masuk";
       setError(msg);
     } finally {
       setLoading(false);
@@ -45,10 +45,10 @@ export default function Login() {
         <CardHeader className="space-y-3">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">Capital Market Platform</span>
+            <span className="text-xl font-bold">Platform Pasar Modal</span>
           </div>
-          <CardTitle>Sign In</CardTitle>
-          <CardDescription>Enter your credentials to access the dashboard</CardDescription>
+          <CardTitle>Masuk</CardTitle>
+          <CardDescription>Masukkan kredensial untuk mengakses dasbor</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -74,7 +74,7 @@ export default function Login() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="password">
-                Password
+                Kata Sandi
               </label>
               <Input
                 id="password"
@@ -90,10 +90,10 @@ export default function Login() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
+                  Sedang masuk...
                 </>
               ) : (
-                "Sign In"
+                "Masuk"
               )}
             </Button>
           </form>
@@ -102,7 +102,7 @@ export default function Login() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Dev Mode</span>
+              <span className="bg-background px-2 text-muted-foreground">Mode Dev</span>
             </div>
           </div>
           <Button
@@ -114,10 +114,10 @@ export default function Login() {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
+                Sedang masuk...
               </>
             ) : (
-              "Quick Login (Dev)"
+              "Login Cepat (Dev)"
             )}
           </Button>
         </CardContent>
