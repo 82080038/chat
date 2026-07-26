@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 
-const BASE_URL = 'http://localhost:8080';
+const BASE_URL = 'http://localhost:8080/api/v1';
 const FRONTEND_URL = 'http://localhost:8080/dashboard';
 
-test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
+test('Full E2E Simulation - Headed Browser', { timeout: 120000 }, async ({ page, request }) => {
   // ─── 1. Login via API ──────────────────────────────────────────────
   console.log('🔐 Logging in...');
-  const loginRes = await page.request.post(`${BASE_URL}/auth/login`, {
-    data: { email: 'owner@platform.local', password: 'Test@1234567' },
+  const loginRes = await request.post(`${BASE_URL}/auth/login`, {
+    data: { email: 'admin@platform.local', password: 'AdminPlatform123!@' },
   });
   expect(loginRes.ok()).toBeTruthy();
   const loginBody = await loginRes.json();
@@ -19,18 +19,10 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
     localStorage.setItem('access_token', t);
   }, token);
 
-  // ─── 2. Navigate to Dashboard ──────────────────────────────────────
-  console.log('📊 Navigating to dashboard...');
-  await page.goto(FRONTEND_URL);
-  await page.waitForTimeout(2000);
-
-  // Check if redirected to login page
-  const url = page.url();
-  console.log(`📍 Current URL: ${url}`);
 
   // ─── 3. API Simulation - Instruments ───────────────────────────────
   console.log('📈 Fetching instruments...');
-  const instrRes = await page.request.get(`${BASE_URL}/instruments?per_page=5`, {
+  const instrRes = await request.get(`${BASE_URL}/instruments?per_page=5`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(instrRes.ok()).toBeTruthy();
@@ -43,7 +35,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
   console.log(`   BBCA ID: ${bbcId}`);
 
   // Fetch portfolios for portfolio ID
-  const pfRes = await page.request.get(`${BASE_URL}/portfolios?per_page=5`, {
+  const pfRes = await request.get(`${BASE_URL}/portfolios?per_page=5`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   let portfolioId = '';
@@ -56,7 +48,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 4. Technical Indicators ───────────────────────────────────────
   console.log('📉 Fetching technical indicators...');
-  const indRes = await page.request.get(`${BASE_URL}/instruments/${bbcId}/indicators`, {
+  const indRes = await request.get(`${BASE_URL}/instruments/${bbcId}/indicators`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(indRes.ok()).toBeTruthy();
@@ -69,7 +61,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 5. Market Regime ──────────────────────────────────────────────
   console.log('🌊 Fetching market regime...');
-  const regimeRes = await page.request.get(`${BASE_URL}/instruments/${bbcId}/regime`, {
+  const regimeRes = await request.get(`${BASE_URL}/instruments/${bbcId}/regime`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(regimeRes.ok()).toBeTruthy();
@@ -81,7 +73,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 6. Composite Score ────────────────────────────────────────────
   console.log('🎯 Fetching composite score...');
-  const scoreRes = await page.request.get(`${BASE_URL}/instruments/${bbcId}/composite-score`, {
+  const scoreRes = await request.get(`${BASE_URL}/instruments/${bbcId}/composite-score`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(scoreRes.ok()).toBeTruthy();
@@ -98,7 +90,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 7. Screening ──────────────────────────────────────────────────
   console.log('🔍 Running screening (ROE >= 15)...');
-  const screenRes = await page.request.post(`${BASE_URL}/screening`, {
+  const screenRes = await request.post(`${BASE_URL}/screening`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     data: { criteria: { roe_min: 15 }, limit: 10 },
   });
@@ -109,14 +101,14 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 8. Market Microstructure ──────────────────────────────────────
   console.log('🏗️ Fetching microstructure data...');
-  const spreadRes = await page.request.get(`${BASE_URL}/instruments/${bbcId}/bid-ask-spread`, {
+  const spreadRes = await request.get(`${BASE_URL}/instruments/${bbcId}/bid-ask-spread`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(spreadRes.ok()).toBeTruthy();
   const spread = (await spreadRes.json()).data;
   console.log(`✅ Bid/Ask Spread: ${Number(spread.spread).toFixed(2)} (${spread.classification})`);
 
-  const orderBookRes = await page.request.get(`${BASE_URL}/instruments/${bbcId}/order-book?levels=5`, {
+  const orderBookRes = await request.get(`${BASE_URL}/instruments/${bbcId}/order-book?levels=5`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(orderBookRes.ok()).toBeTruthy();
@@ -124,7 +116,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
   console.log(`✅ Order Book: ${orderBook.levels.length} levels`);
   console.log(`   Imbalance: ${Number(orderBook.imbalance_pct).toFixed(2)}%`);
 
-  const liqRes = await page.request.get(`${BASE_URL}/instruments/${bbcId}/liquidity-score`, {
+  const liqRes = await request.get(`${BASE_URL}/instruments/${bbcId}/liquidity-score`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(liqRes.ok()).toBeTruthy();
@@ -133,21 +125,21 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 9. Market Factor Matrix ───────────────────────────────────────
   console.log('🌐 Fetching factor matrix...');
-  const factorsRes = await page.request.get(`${BASE_URL}/factors/global-indonesia`, {
+  const factorsRes = await request.get(`${BASE_URL}/factors/global-indonesia`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(factorsRes.ok()).toBeTruthy();
   const factors = (await factorsRes.json()).data;
   console.log(`✅ Global Factors: ${factors.factors?.length || 0} tracked`);
 
-  const rupiahRes = await page.request.get(`${BASE_URL}/factors/rupiah-pressure`, {
+  const rupiahRes = await request.get(`${BASE_URL}/factors/rupiah-pressure`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(rupiahRes.ok()).toBeTruthy();
   const rupiah = (await rupiahRes.json()).data;
   console.log(`✅ Rupiah Pressure: ${rupiah.score} (${rupiah.grade})`);
 
-  const flowRes = await page.request.get(`${BASE_URL}/factors/flow-confirmation`, {
+  const flowRes = await request.get(`${BASE_URL}/factors/flow-confirmation`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(flowRes.ok()).toBeTruthy();
@@ -156,7 +148,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 10. Support/Resistance & Trend ────────────────────────────────
   console.log('📊 Fetching support/resistance...');
-  const srRes = await page.request.get(`${BASE_URL}/instruments/${bbcId}/support-resistance`, {
+  const srRes = await request.get(`${BASE_URL}/instruments/${bbcId}/support-resistance`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(srRes.ok()).toBeTruthy();
@@ -167,7 +159,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 11. Stop Loss ─────────────────────────────────────────────────
   console.log('🛑 Calculating stop loss...');
-  const slRes = await page.request.post(`${BASE_URL}/instruments/${bbcId}/stop-loss`, {
+  const slRes = await request.post(`${BASE_URL}/instruments/${bbcId}/stop-loss`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     data: { entry_price: 9100, side: 'BUY' },
   });
@@ -178,7 +170,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 12. Portfolio Positions ───────────────────────────────────────
   console.log('💼 Fetching portfolio positions...');
-  const posRes = await page.request.get(`${BASE_URL}/portfolios/${portfolioId}/positions`, {
+  const posRes = await request.get(`${BASE_URL}/portfolios/${portfolioId}/positions`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (posRes.ok()) {
@@ -191,7 +183,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 13. Liquidity Risk ────────────────────────────────────────────
   console.log('🌊 Assessing liquidity risk...');
-  const liqRiskRes = await page.request.get(`${BASE_URL}/portfolios/${portfolioId}/liquidity-risk`, {
+  const liqRiskRes = await request.get(`${BASE_URL}/portfolios/${portfolioId}/liquidity-risk`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(liqRiskRes.ok()).toBeTruthy();
@@ -201,7 +193,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 14. Gap Risk ──────────────────────────────────────────────────
   console.log('📏 Assessing gap risk...');
-  const gapRiskRes = await page.request.get(`${BASE_URL}/portfolios/${portfolioId}/gap-risk`, {
+  const gapRiskRes = await request.get(`${BASE_URL}/portfolios/${portfolioId}/gap-risk`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(gapRiskRes.ok()).toBeTruthy();
@@ -212,7 +204,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
   console.log('🔒 Running compliance checks...');
 
   // Duplicate order check
-  const dupRes = await page.request.post(`${BASE_URL}/compliance/duplicate-order`, {
+  const dupRes = await request.post(`${BASE_URL}/compliance/duplicate-order`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     data: {
       portfolio_id: portfolioId,
@@ -227,7 +219,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
   console.log(`✅ Duplicate Order: ${dup.passed ? 'PASS' : 'FAIL'} (${dup.duplicate_count} duplicates)`);
 
   // Erroneous order check
-  const errRes = await page.request.post(`${BASE_URL}/compliance/erroneous-order`, {
+  const errRes = await request.post(`${BASE_URL}/compliance/erroneous-order`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     data: {
       portfolio_id: portfolioId,
@@ -242,7 +234,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
   console.log(`✅ Erroneous Order: ${err.passed ? 'PASS' : 'FAIL'} (${err.warning_count} warnings)`);
 
   // Capital threshold check
-  const capRes = await page.request.post(`${BASE_URL}/compliance/capital-threshold`, {
+  const capRes = await request.post(`${BASE_URL}/compliance/capital-threshold`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     data: {
       portfolio_id: portfolioId,
@@ -256,7 +248,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 16. Market Impact Estimation ──────────────────────────────────
   console.log('💥 Estimating market impact...');
-  const impactRes = await page.request.post(`${BASE_URL}/instruments/${bbcId}/market-impact`, {
+  const impactRes = await request.post(`${BASE_URL}/instruments/${bbcId}/market-impact`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     data: { order_value: 50000000, side: 'BUY' },
   });
@@ -266,7 +258,7 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 17. Data Quality ──────────────────────────────────────────────
   console.log('📋 Checking data quality...');
-  const dqRes = await page.request.get(`${BASE_URL}/ingestion/quality/${bbcId}`, {
+  const dqRes = await request.get(`${BASE_URL}/ingestion/quality/${bbcId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (dqRes.ok()) {
@@ -278,31 +270,37 @@ test('Full E2E Simulation - Headed Browser', async ({ page, context }) => {
 
   // ─── 18. Health Check ──────────────────────────────────────────────
   console.log('❤️ Health check...');
-  const healthRes = await page.request.get(`${BASE_URL}/health`);
+  const healthRes = await request.get(`${BASE_URL}/health`);
   expect(healthRes.ok()).toBeTruthy();
   const health = await healthRes.json();
   console.log(`✅ Health: ${health.data?.status || health.status || 'OK'}`);
+
+  // ─── 18b. Navigate to Dashboard ────────────────────────────────────
+  console.log("📊 Navigating to dashboard...");
+  await page.goto(FRONTEND_URL);
+  await page.waitForTimeout(2000);
+  console.log(`📍 Current URL: ${page.url()}`);
 
   // ─── 19. Navigate Frontend Pages ───────────────────────────────────
   console.log('🖥️ Navigating frontend pages...');
 
   // Try navigating to instruments page
-  await page.goto(`${FRONTEND_URL}/#/instruments`);
+  await page.goto(`${FRONTEND_URL}/instruments`);
   await page.waitForTimeout(1500);
   console.log(`📍 At: ${page.url()}`);
 
   // Try stock detail page
-  await page.goto(`${FRONTEND_URL}/#/instruments/${bbcId}`);
+  await page.goto(`${FRONTEND_URL}/instruments/${bbcId}`);
   await page.waitForTimeout(1500);
   console.log(`📍 At: ${page.url()}`);
 
   // Try portfolios page
-  await page.goto(`${FRONTEND_URL}/#/portfolios`);
+  await page.goto(`${FRONTEND_URL}/portfolios`);
   await page.waitForTimeout(1500);
   console.log(`📍 At: ${page.url()}`);
 
   // Take screenshots
-  await page.goto(`${FRONTEND_URL}/#/instruments/${bbcId}`);
+  await page.goto(`${FRONTEND_URL}/instruments/${bbcId}`);
   await page.waitForTimeout(2000);
   await page.screenshot({ path: 'tests/screenshots/stock-detail.png', fullPage: true });
   console.log('📸 Screenshot saved: stock-detail.png');

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const BASE_URL = 'http://localhost:8080';
+const BASE_URL = 'http://localhost:8080/api/v1';
 const FRONTEND_URL = 'http://localhost:8080/dashboard';
 const DAY_DURATION_MS = 5000; // 1 day = 5 seconds
 const TOTAL_DAYS = 22; // 22 trading days in 1 month
@@ -20,7 +20,7 @@ test('1-Month Market Simulation (22 days × 5 sec/day) - Headed Browser', async 
   console.log('==========================================\n');
 
   const loginRes = await page.request.post(`${BASE_URL}/auth/login`, {
-    data: { email: 'owner@platform.local', password: 'Test@1234567' },
+    data: { email: 'admin@platform.local', password: 'AdminPlatform123!@' },
   });
   expect(loginRes.ok()).toBeTruthy();
   const token = (await loginRes.json()).data.token;

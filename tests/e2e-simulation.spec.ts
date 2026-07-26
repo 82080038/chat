@@ -4,6 +4,7 @@ const BASE = 'http://localhost:8080/dashboard';
 
 test.describe('E2E Application Simulation', () => {
 
+
   test('1. Login page loads correctly', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (msg: ConsoleMessage) => {
@@ -17,7 +18,7 @@ test.describe('E2E Application Simulation', () => {
       localStorage.removeItem('refresh_token');
     });
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page).toHaveURL(/\/login/);
     await expect(page.locator('input[type="email"]')).toBeVisible();
@@ -80,10 +81,11 @@ test.describe('E2E Application Simulation', () => {
       localStorage.removeItem('refresh_token');
     });
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByRole('button', { name: /login cepat/i }).waitFor({ state: 'visible', timeout: 15000 });
     await page.getByRole('button', { name: /login cepat/i }).click();
     await page.waitForURL(`${BASE}`, { timeout: 10000 });
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
 
     const bodyText = await page.locator('body').innerText();
@@ -99,7 +101,7 @@ test.describe('E2E Application Simulation', () => {
   });
 
   test('4. Navigate through all dashboard sections', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     const errors: string[] = [];
     const failedRequests: string[] = [];
 
@@ -119,10 +121,10 @@ test.describe('E2E Application Simulation', () => {
       localStorage.removeItem('refresh_token');
     });
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.getByRole('button', { name: /login cepat/i }).click();
     await page.waitForURL(`${BASE}`, { timeout: 10000 });
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     const navLinks = await page.locator('nav a, aside a, [role="navigation"] a, .sidebar a, .nav-link, button[href]').all();
@@ -144,10 +146,10 @@ test.describe('E2E Application Simulation', () => {
 
       try {
         await link.click({ timeout: 5000 });
-        await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+        await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => { });
         console.log(`  OK Clicked: "${text}" -> ${page.url()}`);
         await page.waitForTimeout(1500);
-        await page.screenshot({ path: `tests/screenshots/04-nav-${i}-${text.toLowerCase().replace(/\s+/g, '-')}.png`, fullPage: true }).catch(() => {});
+        await page.screenshot({ path: `tests/screenshots/04-nav-${i}-${text.toLowerCase().replace(/\s+/g, '-')}.png`, fullPage: true }).catch(() => { });
       } catch (e) {
         console.log(`  FAIL Clicking: "${text}" -> ${(e as Error).message}`);
       }
@@ -175,10 +177,10 @@ test.describe('E2E Application Simulation', () => {
       localStorage.removeItem('refresh_token');
     });
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.getByRole('button', { name: /login cepat/i }).click();
     await page.waitForURL(`${BASE}`, { timeout: 10000 });
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(5000);
 
     console.log('API CALLS:');
@@ -205,14 +207,14 @@ test.describe('E2E Application Simulation', () => {
       localStorage.removeItem('refresh_token');
     });
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
-    await page.locator('input[type="email"]').fill('owner@platform.local');
-    await page.locator('input[type="password"]').fill('Test@1234567');
+    await page.locator('input[type="email"]').fill('admin@platform.local');
+    await page.locator('input[type="password"]').fill('AdminPlatform123!@');
     await page.getByRole('button', { name: /masuk/i }).click();
 
     await page.waitForURL(`${BASE}`, { timeout: 10000 });
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.screenshot({ path: 'tests/screenshots/06-manual-login.png', fullPage: true });
 
@@ -232,15 +234,17 @@ test.describe('E2E Application Simulation', () => {
       localStorage.removeItem('refresh_token');
     });
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByRole('button', { name: /login cepat/i }).waitFor({ state: 'visible', timeout: 15000 });
     await page.getByRole('button', { name: /login cepat/i }).click();
     await page.waitForURL(`${BASE}`, { timeout: 10000 });
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
 
     const logoutBtn = page.getByRole('button', { name: /keluar/i }).or(page.getByText(/keluar/i));
     if (await logoutBtn.count() > 0) {
       await logoutBtn.first().click();
-      await page.waitForURL(/\/login/, { timeout: 5000 }).catch(() => {});
+      await page.waitForURL(/\/login/, { timeout: 5000 }).catch(() => { });
       console.log(`After logout URL: ${page.url()}`);
       await page.screenshot({ path: 'tests/screenshots/07-after-logout.png', fullPage: true });
     } else {

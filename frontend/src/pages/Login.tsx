@@ -34,9 +34,9 @@ export default function Login() {
   }
 
   async function handleQuickLogin() {
-    setEmail("owner@platform.local");
-    setPassword("Test@1234567");
-    await doLogin("owner@platform.local", "Test@1234567");
+    setEmail("admin@platform.local");
+    setPassword("AdminPlatform123!@");
+    await doLogin("admin@platform.local", "AdminPlatform123!@");
   }
 
   return (

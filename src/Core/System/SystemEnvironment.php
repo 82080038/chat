@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Platform\Core\System;
 
+use Platform\Core\Application;
+
 /**
  * System Environment Detector — detects OS, hardware, GPU/CUDA availability,
  * PHP extensions, memory, and adjusts application behavior accordingly.

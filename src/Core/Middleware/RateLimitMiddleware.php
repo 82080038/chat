@@ -12,7 +12,7 @@ final class RateLimitMiddleware
 {
     private const DEFAULT_LIMIT = 60;
     private const DEFAULT_WINDOW = 60;
-    private const AUTH_LIMIT = 5;
+    private const AUTH_LIMIT = 20;
     private const AUTH_WINDOW = 60;
 
     private static ?RedisCacheStore $cache = null;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Platform\Core\Http;
 
-final class Response
+class Response
 {
-    private int $statusCode;
-    private array $headers = [];
+    protected int $statusCode;
+    protected array $headers = [];
     private ?array $data = null;
     private ?array $error = null;
 
@@ -54,7 +54,7 @@ final class Response
         return $response;
     }
 
-    public function addHeader(string $name, string $value): self
+    public function addHeader(string $name, string $value): static
     {
         $this->headers[$name][] = $value;
         return $this;
